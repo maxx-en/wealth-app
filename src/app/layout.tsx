@@ -7,6 +7,12 @@ export const metadata: Metadata = {
   description: "현금흐름 · 투자 · 자산 · 목표를 한 곳에서",
 };
 
+// 라이트모드 고정 (다크모드에서 색 비틀림 방지)
+export const viewport = {
+  colorScheme: "light" as const,
+  themeColor: "#fafafa",
+};
+
 export default function RootLayout({
   children,
 }: Readonly<{
