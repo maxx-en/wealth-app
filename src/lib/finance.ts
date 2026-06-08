@@ -1,0 +1,103 @@
+// 자산 계산 엔진 — 저축률, DCA 미래가치, 목표 역산, 성장률
+
+/** 원화 포맷: 1234567 -> "1,234,567" */
+export function formatKRW(n: number): string {
+  return Math.round(n).toLocaleString("ko-KR");
+}
+
+/** 통화 기호 포함 포맷 */
+export function formatMoney(n: number, currency = "KRW"): string {
+  if (currency === "USD") return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  return "₩" + Math.round(n).toLocaleString("ko-KR");
+}
+
+/** 퍼센트 포맷 (+/- 부호 포함) */
+export function formatPct(n: number, digits = 1): string {
+  const s = n >= 0 ? "+" : "";
+  return s + n.toFixed(digits) + "%";
+}
+
+/** 저축률 = (저축 + 순잉여) / 수입.  여기선 저축액 / 수입 으로 단순화 */
+export function savingsRate(income: number, saving: number): number {
+  if (income <= 0) return 0;
+  return (saving / income) * 100;
+}
+
+/**
+ * DCA(정액적립) 미래가치 계산.
+ * 매월 monthly 금액을 연 annualReturnPct 수익률로 months개월 적립.
+ * 초기 보유금액 initial 포함.
+ * 월복리 가정.
+ */
+export function dcaFutureValue(
+  initial: number,
+  monthly: number,
+  annualReturnPct: number,
+  months: number
+): number {
+  const r = annualReturnPct / 100 / 12; // 월 수익률
+  if (r === 0) return initial + monthly * months;
+  // 초기금 복리 성장
+  const fvInitial = initial * Math.pow(1 + r, months);
+  // 매월 적립금의 미래가치 (적립식 연금 미래가치 공식, 기말납입)
+  const fvMonthly = monthly * ((Math.pow(1 + r, months) - 1) / r);
+  return fvInitial + fvMonthly;
+}
+
+/** DCA 적립 원금 총합 (수익 제외, 투입한 돈) */
+export function dcaPrincipal(initial: number, monthly: number, months: number): number {
+  return initial + monthly * months;
+}
+
+/**
+ * 목표 역산: 목표금액에 도달하려면 매월 얼마를 적립해야 하는가.
+ * 초기 보유 initial, 연수익률 annualReturnPct, months개월 동안.
+ */
+export function requiredMonthly(
+  target: number,
+  initial: number,
+  annualReturnPct: number,
+  months: number
+): number {
+  if (months <= 0) return Math.max(0, target - initial);
+  const r = annualReturnPct / 100 / 12;
+  const fvInitial = initial * Math.pow(1 + r, months);
+  const remaining = target - fvInitial;
+  if (remaining <= 0) return 0; // 초기금만으로 이미 도달
+  if (r === 0) return remaining / months;
+  const factor = (Math.pow(1 + r, months) - 1) / r;
+  return remaining / factor;
+}
+
+/** 두 시점 사이 개월 수 (YYYY-MM-DD) */
+export function monthsBetween(from: Date, to: Date): number {
+  return (
+    (to.getFullYear() - from.getFullYear()) * 12 +
+    (to.getMonth() - from.getMonth())
+  );
+}
+
+/** 성장률 % = (현재 - 이전) / 이전 * 100 */
+export function growthRate(current: number, previous: number): number {
+  if (previous === 0) return current === 0 ? 0 : 100;
+  return ((current - previous) / Math.abs(previous)) * 100;
+}
+
+/** DCA 미래가치 곡선 (연도별 포인트) — 그래프용 */
+export function dcaProjectionCurve(
+  initial: number,
+  monthly: number,
+  annualReturnPct: number,
+  years: number
+): { year: number; principal: number; value: number }[] {
+  const out: { year: number; principal: number; value: number }[] = [];
+  for (let y = 0; y <= years; y++) {
+    const months = y * 12;
+    out.push({
+      year: y,
+      principal: Math.round(dcaPrincipal(initial, monthly, months)),
+      value: Math.round(dcaFutureValue(initial, monthly, annualReturnPct, months)),
+    });
+  }
+  return out;
+}
