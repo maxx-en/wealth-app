@@ -1,13 +1,14 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getTransactions, addTransaction, deleteTransaction } from "@/lib/queries";
+import { withHousehold } from "@/lib/route-helpers";
 
-export async function GET(req: NextRequest) {
+export const GET = withHousehold(async (hid, req) => {
   const ym = new URL(req.url).searchParams.get("ym") ?? undefined;
-  return NextResponse.json(await getTransactions(ym || undefined));
-}
-export async function POST(req: NextRequest) {
+  return NextResponse.json(await getTransactions(hid, ym || undefined));
+});
+export const POST = withHousehold(async (hid, req) => {
   const b = await req.json();
-  await addTransaction({
+  await addTransaction(hid, {
     account_id: b.account_id ?? null,
     kind: b.kind,
     category: b.category ?? null,
@@ -17,12 +18,12 @@ export async function POST(req: NextRequest) {
     recurring_id: null,
   });
   const ym = b.date?.slice(0, 7);
-  return NextResponse.json(await getTransactions(ym));
-}
-export async function DELETE(req: NextRequest) {
+  return NextResponse.json(await getTransactions(hid, ym));
+});
+export const DELETE = withHousehold(async (hid, req) => {
   const url = new URL(req.url);
   const id = Number(url.searchParams.get("id"));
   const ym = url.searchParams.get("ym") ?? undefined;
-  await deleteTransaction(id);
-  return NextResponse.json(await getTransactions(ym || undefined));
-}
+  await deleteTransaction(hid, id);
+  return NextResponse.json(await getTransactions(hid, ym || undefined));
+});

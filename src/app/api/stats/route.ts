@@ -1,19 +1,19 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { categoryBreakdown, monthlyTrend, monthlySummary } from "@/lib/queries";
+import { withHousehold } from "@/lib/route-helpers";
 
 // /api/stats?ym=2026-06&months=6
-// 카테고리별 분석(지출/수입/저축) + 최근 N개월 추이
-export async function GET(req: NextRequest) {
+export const GET = withHousehold(async (hid, req) => {
   const url = new URL(req.url);
   const ym = url.searchParams.get("ym") ?? "";
   const months = Number(url.searchParams.get("months")) || 6;
 
   const [summary, expenseByCategory, incomeByCategory, savingByCategory, trend] = await Promise.all([
-    monthlySummary(ym),
-    categoryBreakdown(ym, "expense"),
-    categoryBreakdown(ym, "income"),
-    categoryBreakdown(ym, "saving"),
-    monthlyTrend(months),
+    monthlySummary(hid, ym),
+    categoryBreakdown(hid, ym, "expense"),
+    categoryBreakdown(hid, ym, "income"),
+    categoryBreakdown(hid, ym, "saving"),
+    monthlyTrend(hid, months),
   ]);
   return NextResponse.json({ ym, summary, expenseByCategory, incomeByCategory, savingByCategory, trend });
-}
+});

@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { getAccounts, getHoldings, getProperties } from "@/lib/queries";
 import { fetchQuotes, fetchUsdKrw } from "@/lib/quotes";
+import { withHousehold } from "@/lib/route-helpers";
 
 // 전체 자산 현황 집계 (KRW 환산). 대시보드용.
-export async function GET() {
+export const GET = withHousehold(async (hid) => {
   const [accounts, holdings, properties] = await Promise.all([
-    getAccounts(),
-    getHoldings(),
-    getProperties(),
+    getAccounts(hid),
+    getHoldings(hid),
+    getProperties(hid),
   ]);
 
   const usdKrw = await fetchUsdKrw();
@@ -65,4 +66,4 @@ export async function GET() {
     holdings: holdingDetails,
     properties,
   });
-}
+});

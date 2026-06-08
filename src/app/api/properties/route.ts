@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getProperties, addProperty, updateProperty, deleteProperty } from "@/lib/queries";
+import { withHousehold } from "@/lib/route-helpers";
 
 function parse(b: any) {
   return {
@@ -11,20 +12,20 @@ function parse(b: any) {
   };
 }
 
-export async function GET() {
-  return NextResponse.json(await getProperties());
-}
-export async function POST(req: NextRequest) {
-  await addProperty(parse(await req.json()));
-  return NextResponse.json(await getProperties());
-}
-export async function PUT(req: NextRequest) {
+export const GET = withHousehold(async (hid) => {
+  return NextResponse.json(await getProperties(hid));
+});
+export const POST = withHousehold(async (hid, req) => {
+  await addProperty(hid, parse(await req.json()));
+  return NextResponse.json(await getProperties(hid));
+});
+export const PUT = withHousehold(async (hid, req) => {
   const b = await req.json();
-  await updateProperty(b.id, parse(b));
-  return NextResponse.json(await getProperties());
-}
-export async function DELETE(req: NextRequest) {
+  await updateProperty(hid, b.id, parse(b));
+  return NextResponse.json(await getProperties(hid));
+});
+export const DELETE = withHousehold(async (hid, req) => {
   const id = Number(new URL(req.url).searchParams.get("id"));
-  await deleteProperty(id);
-  return NextResponse.json(await getProperties());
-}
+  await deleteProperty(hid, id);
+  return NextResponse.json(await getProperties(hid));
+});

@@ -1,12 +1,13 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getRecurringItems, addRecurringItem, deleteRecurringItem, toggleRecurringItem } from "@/lib/queries";
+import { withHousehold } from "@/lib/route-helpers";
 
-export async function GET() {
-  return NextResponse.json(await getRecurringItems());
-}
-export async function POST(req: NextRequest) {
+export const GET = withHousehold(async (hid) => {
+  return NextResponse.json(await getRecurringItems(hid));
+});
+export const POST = withHousehold(async (hid, req) => {
   const b = await req.json();
-  await addRecurringItem({
+  await addRecurringItem(hid, {
     account_id: b.account_id ?? null,
     kind: b.kind,
     category: b.category ?? null,
@@ -14,15 +15,15 @@ export async function POST(req: NextRequest) {
     amount: Number(b.amount) || 0,
     day_of_month: Number(b.day_of_month) || 1,
   });
-  return NextResponse.json(await getRecurringItems());
-}
-export async function PUT(req: NextRequest) {
+  return NextResponse.json(await getRecurringItems(hid));
+});
+export const PUT = withHousehold(async (hid, req) => {
   const b = await req.json();
-  await toggleRecurringItem(b.id, b.active ? 1 : 0);
-  return NextResponse.json(await getRecurringItems());
-}
-export async function DELETE(req: NextRequest) {
+  await toggleRecurringItem(hid, b.id, b.active ? 1 : 0);
+  return NextResponse.json(await getRecurringItems(hid));
+});
+export const DELETE = withHousehold(async (hid, req) => {
   const id = Number(new URL(req.url).searchParams.get("id"));
-  await deleteRecurringItem(id);
-  return NextResponse.json(await getRecurringItems());
-}
+  await deleteRecurringItem(hid, id);
+  return NextResponse.json(await getRecurringItems(hid));
+});

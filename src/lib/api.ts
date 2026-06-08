@@ -4,6 +4,11 @@ export async function api<T = any>(url: string, opts?: RequestInit): Promise<T> 
     ...opts,
     headers: { "Content-Type": "application/json", ...(opts?.headers || {}) },
   });
+  // 세션 만료 등으로 인증 끊기면 로그인 페이지로
+  if (res.status === 401 && typeof window !== "undefined") {
+    window.location.href = "/login";
+    throw new Error("unauthorized");
+  }
   if (!res.ok) throw new Error(`API ${res.status}`);
   return res.json();
 }

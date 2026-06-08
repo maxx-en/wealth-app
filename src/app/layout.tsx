@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
   title: "내 자산 관리",
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full bg-neutral-50 text-neutral-900">{children}</body>
+      <body className="min-h-full bg-neutral-50 text-neutral-900">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

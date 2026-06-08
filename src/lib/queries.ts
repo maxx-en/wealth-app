@@ -1,79 +1,79 @@
-import { sql, CURRENT_USER_ID as UID, ensureSchema } from "./db";
+import { sql, ensureSchema } from "./db";
 
-// 모든 쿼리 함수는 비동기(Postgres). 호출 전 스키마 보장.
+// 모든 쿼리는 household_id(가구) 기준. 호출 전 스키마 보장.
 async function ready() { await ensureSchema(); }
 
 // ---------- 타입 ----------
 export type Account = {
-  id: number; user_id: number; name: string; type: string;
+  id: number; household_id: number; name: string; type: string;
   balance: number; sort_order: number;
 };
 export type Transaction = {
-  id: number; user_id: number; account_id: number | null; kind: string;
+  id: number; household_id: number; account_id: number | null; kind: string;
   category: string | null; memo: string | null; amount: number; date: string;
   recurring_id: number | null;
 };
 export type RecurringItem = {
-  id: number; user_id: number; account_id: number | null; kind: string;
+  id: number; household_id: number; account_id: number | null; kind: string;
   category: string | null; memo: string | null; amount: number;
   day_of_month: number; active: number;
 };
 export type Holding = {
-  id: number; user_id: number; symbol: string; name: string | null;
+  id: number; household_id: number; symbol: string; name: string | null;
   market: string; shares: number; avg_cost: number; currency: string;
   dca_monthly: number; dca_expected_return: number;
 };
 export type Property = {
-  id: number; user_id: number; name: string; market_value: number;
+  id: number; household_id: number; name: string; market_value: number;
   loan_balance: number; loan_rate: number; monthly_payment: number;
 };
 export type Goal = {
-  id: number; user_id: number; name: string; target_amount: number;
+  id: number; household_id: number; name: string; target_amount: number;
   target_date: string; expected_return: number;
 };
 
 // ---------- 계좌 ----------
-export async function getAccounts(): Promise<Account[]> {
+export async function getAccounts(hid: number): Promise<Account[]> {
   await ready();
-  return await sql<Account[]>`SELECT * FROM accounts WHERE user_id=${UID} ORDER BY sort_order, id`;
+  return await sql<Account[]>`SELECT * FROM accounts WHERE household_id=${hid} ORDER BY sort_order, id`;
 }
-export async function addAccount(name: string, type: string, balance: number) {
+export async function addAccount(hid: number, name: string, type: string, balance: number) {
   await ready();
-  await sql`INSERT INTO accounts (user_id,name,type,balance) VALUES (${UID},${name},${type},${balance})`;
+  await sql`INSERT INTO accounts (household_id,name,type,balance) VALUES (${hid},${name},${type},${balance})`;
 }
-export async function updateAccount(id: number, name: string, type: string, balance: number) {
+export async function updateAccount(hid: number, id: number, name: string, type: string, balance: number) {
   await ready();
-  await sql`UPDATE accounts SET name=${name},type=${type},balance=${balance} WHERE id=${id} AND user_id=${UID}`;
+  await sql`UPDATE accounts SET name=${name},type=${type},balance=${balance} WHERE id=${id} AND household_id=${hid}`;
 }
-export async function deleteAccount(id: number) {
+export async function deleteAccount(hid: number, id: number) {
   await ready();
-  await sql`DELETE FROM accounts WHERE id=${id} AND user_id=${UID}`;
+  await sql`DELETE FROM accounts WHERE id=${id} AND household_id=${hid}`;
 }
 
 // ---------- 거래 ----------
-export async function getTransactions(ym?: string): Promise<Transaction[]> {
+export async function getTransactions(hid: number, ym?: string): Promise<Transaction[]> {
   await ready();
   if (ym) return await sql<Transaction[]>`
-    SELECT * FROM transactions WHERE user_id=${UID} AND substr(date,1,7)=${ym}
+    SELECT * FROM transactions WHERE household_id=${hid} AND substr(date,1,7)=${ym}
     ORDER BY date DESC, id DESC`;
-  return await sql<Transaction[]>`SELECT * FROM transactions WHERE user_id=${UID} ORDER BY date DESC, id DESC`;
+  return await sql<Transaction[]>`SELECT * FROM transactions WHERE household_id=${hid} ORDER BY date DESC, id DESC`;
 }
-export async function addTransaction(t: Omit<Transaction, "id" | "user_id">) {
+export async function addTransaction(hid: number, t: Omit<Transaction, "id" | "household_id">) {
   await ready();
-  await sql`INSERT INTO transactions (user_id,account_id,kind,category,memo,amount,date,recurring_id)
-    VALUES (${UID},${t.account_id},${t.kind},${t.category},${t.memo},${t.amount},${t.date},${t.recurring_id ?? null})`;
+  await sql`INSERT INTO transactions (household_id,account_id,kind,category,memo,amount,date,recurring_id)
+    VALUES (${hid},${t.account_id},${t.kind},${t.category},${t.memo},${t.amount},${t.date},${t.recurring_id ?? null})`;
 }
-export async function deleteTransaction(id: number) {
+export async function deleteTransaction(hid: number, id: number) {
   await ready();
-  await sql`DELETE FROM transactions WHERE id=${id} AND user_id=${UID}`;
+  await sql`DELETE FROM transactions WHERE id=${id} AND household_id=${hid}`;
 }
 
-// 월별 합계 (수입/지출/저축)
-export async function monthlySummary(ym: string) {
+// 월별 합계
+export async function monthlySummary(hid: number, ym: string) {
   await ready();
   const rows = await sql<{ kind: string; total: number }[]>`
     SELECT kind, SUM(amount) as total FROM transactions
-    WHERE user_id=${UID} AND substr(date,1,7)=${ym} GROUP BY kind`;
+    WHERE household_id=${hid} AND substr(date,1,7)=${ym} GROUP BY kind`;
   const out = { income: 0, expense: 0, saving: 0 };
   rows.forEach((r) => {
     if (r.kind === "income") out.income = Number(r.total);
@@ -83,21 +83,21 @@ export async function monthlySummary(ym: string) {
   return out;
 }
 
-// 특정 월의 카테고리별 합계
-export async function categoryBreakdown(ym: string, kind: string) {
+// 카테고리별 합계
+export async function categoryBreakdown(hid: number, ym: string, kind: string) {
   await ready();
   return await sql<{ category: string; total: number; cnt: number }[]>`
     SELECT COALESCE(category,'미분류') as category, SUM(amount) as total, COUNT(*)::int as cnt
-    FROM transactions WHERE user_id=${UID} AND kind=${kind} AND substr(date,1,7)=${ym}
+    FROM transactions WHERE household_id=${hid} AND kind=${kind} AND substr(date,1,7)=${ym}
     GROUP BY category ORDER BY total DESC`;
 }
 
-// 최근 N개월 월별 수입/지출/저축 추이
-export async function monthlyTrend(months: number) {
+// 최근 N개월 추이
+export async function monthlyTrend(hid: number, months: number) {
   await ready();
   const rows = await sql<{ ym: string; kind: string; total: number }[]>`
     SELECT substr(date,1,7) as ym, kind, SUM(amount) as total
-    FROM transactions WHERE user_id=${UID} GROUP BY ym, kind ORDER BY ym`;
+    FROM transactions WHERE household_id=${hid} GROUP BY ym, kind ORDER BY ym`;
   const map: Record<string, { ym: string; income: number; expense: number; saving: number }> = {};
   rows.forEach((r) => {
     if (!map[r.ym]) map[r.ym] = { ym: r.ym, income: 0, expense: 0, saving: 0 };
@@ -108,111 +108,159 @@ export async function monthlyTrend(months: number) {
 }
 
 // ---------- 정기항목 ----------
-export async function getRecurringItems(): Promise<RecurringItem[]> {
+export async function getRecurringItems(hid: number): Promise<RecurringItem[]> {
   await ready();
-  return await sql<RecurringItem[]>`SELECT * FROM recurring_items WHERE user_id=${UID} ORDER BY day_of_month, id`;
+  return await sql<RecurringItem[]>`SELECT * FROM recurring_items WHERE household_id=${hid} ORDER BY day_of_month, id`;
 }
-export async function addRecurringItem(r: Omit<RecurringItem, "id" | "user_id" | "active">) {
+export async function addRecurringItem(hid: number, r: Omit<RecurringItem, "id" | "household_id" | "active">) {
   await ready();
-  await sql`INSERT INTO recurring_items (user_id,account_id,kind,category,memo,amount,day_of_month)
-    VALUES (${UID},${r.account_id},${r.kind},${r.category},${r.memo},${r.amount},${r.day_of_month})`;
+  await sql`INSERT INTO recurring_items (household_id,account_id,kind,category,memo,amount,day_of_month)
+    VALUES (${hid},${r.account_id},${r.kind},${r.category},${r.memo},${r.amount},${r.day_of_month})`;
 }
-export async function deleteRecurringItem(id: number) {
+export async function deleteRecurringItem(hid: number, id: number) {
   await ready();
-  await sql`DELETE FROM recurring_items WHERE id=${id} AND user_id=${UID}`;
+  await sql`DELETE FROM recurring_items WHERE id=${id} AND household_id=${hid}`;
 }
-export async function toggleRecurringItem(id: number, active: number) {
+export async function toggleRecurringItem(hid: number, id: number, active: number) {
   await ready();
-  await sql`UPDATE recurring_items SET active=${active} WHERE id=${id} AND user_id=${UID}`;
+  await sql`UPDATE recurring_items SET active=${active} WHERE id=${id} AND household_id=${hid}`;
 }
 
-/**
- * 정기항목을 특정 월(ym)의 거래로 생성. 이미 그 달에 같은 recurring_id로 생성됐으면 건너뜀.
- */
-export async function materializeRecurring(ym: string): Promise<number> {
+/** 정기항목을 특정 월의 거래로 생성 (중복 방지) */
+export async function materializeRecurring(hid: number, ym: string): Promise<number> {
   await ready();
-  const items = (await getRecurringItems()).filter((i) => i.active);
+  const items = (await getRecurringItems(hid)).filter((i) => i.active);
   let created = 0;
   for (const it of items) {
     const exists = await sql`
-      SELECT 1 FROM transactions WHERE user_id=${UID} AND recurring_id=${it.id} AND substr(date,1,7)=${ym} LIMIT 1`;
+      SELECT 1 FROM transactions WHERE household_id=${hid} AND recurring_id=${it.id} AND substr(date,1,7)=${ym} LIMIT 1`;
     if (exists.length > 0) continue;
     const day = String(Math.min(it.day_of_month, 28)).padStart(2, "0");
     const date = `${ym}-${day}`;
-    await sql`INSERT INTO transactions (user_id,account_id,kind,category,memo,amount,date,recurring_id)
-      VALUES (${UID},${it.account_id},${it.kind},${it.category},${it.memo},${it.amount},${date},${it.id})`;
+    await sql`INSERT INTO transactions (household_id,account_id,kind,category,memo,amount,date,recurring_id)
+      VALUES (${hid},${it.account_id},${it.kind},${it.category},${it.memo},${it.amount},${date},${it.id})`;
     created++;
   }
   return created;
 }
 
 // ---------- 주식 ----------
-export async function getHoldings(): Promise<Holding[]> {
+export async function getHoldings(hid: number): Promise<Holding[]> {
   await ready();
-  return await sql<Holding[]>`SELECT * FROM holdings WHERE user_id=${UID} ORDER BY id`;
+  return await sql<Holding[]>`SELECT * FROM holdings WHERE household_id=${hid} ORDER BY id`;
 }
-export async function addHolding(h: Omit<Holding, "id" | "user_id">) {
+export async function addHolding(hid: number, h: Omit<Holding, "id" | "household_id">) {
   await ready();
-  await sql`INSERT INTO holdings (user_id,symbol,name,market,shares,avg_cost,currency,dca_monthly,dca_expected_return)
-    VALUES (${UID},${h.symbol},${h.name},${h.market},${h.shares},${h.avg_cost},${h.currency},${h.dca_monthly},${h.dca_expected_return})`;
+  await sql`INSERT INTO holdings (household_id,symbol,name,market,shares,avg_cost,currency,dca_monthly,dca_expected_return)
+    VALUES (${hid},${h.symbol},${h.name},${h.market},${h.shares},${h.avg_cost},${h.currency},${h.dca_monthly},${h.dca_expected_return})`;
 }
-export async function updateHolding(id: number, h: Omit<Holding, "id" | "user_id">) {
+export async function updateHolding(hid: number, id: number, h: Omit<Holding, "id" | "household_id">) {
   await ready();
   await sql`UPDATE holdings SET symbol=${h.symbol},name=${h.name},market=${h.market},shares=${h.shares},
     avg_cost=${h.avg_cost},currency=${h.currency},dca_monthly=${h.dca_monthly},dca_expected_return=${h.dca_expected_return}
-    WHERE id=${id} AND user_id=${UID}`;
+    WHERE id=${id} AND household_id=${hid}`;
 }
-export async function deleteHolding(id: number) {
+export async function deleteHolding(hid: number, id: number) {
   await ready();
-  await sql`DELETE FROM holdings WHERE id=${id} AND user_id=${UID}`;
+  await sql`DELETE FROM holdings WHERE id=${id} AND household_id=${hid}`;
 }
 
 // ---------- 부동산 ----------
-export async function getProperties(): Promise<Property[]> {
+export async function getProperties(hid: number): Promise<Property[]> {
   await ready();
-  return await sql<Property[]>`SELECT * FROM properties WHERE user_id=${UID} ORDER BY id`;
+  return await sql<Property[]>`SELECT * FROM properties WHERE household_id=${hid} ORDER BY id`;
 }
-export async function addProperty(p: Omit<Property, "id" | "user_id">) {
+export async function addProperty(hid: number, p: Omit<Property, "id" | "household_id">) {
   await ready();
-  await sql`INSERT INTO properties (user_id,name,market_value,loan_balance,loan_rate,monthly_payment)
-    VALUES (${UID},${p.name},${p.market_value},${p.loan_balance},${p.loan_rate},${p.monthly_payment})`;
+  await sql`INSERT INTO properties (household_id,name,market_value,loan_balance,loan_rate,monthly_payment)
+    VALUES (${hid},${p.name},${p.market_value},${p.loan_balance},${p.loan_rate},${p.monthly_payment})`;
 }
-export async function updateProperty(id: number, p: Omit<Property, "id" | "user_id">) {
+export async function updateProperty(hid: number, id: number, p: Omit<Property, "id" | "household_id">) {
   await ready();
   await sql`UPDATE properties SET name=${p.name},market_value=${p.market_value},loan_balance=${p.loan_balance},
-    loan_rate=${p.loan_rate},monthly_payment=${p.monthly_payment} WHERE id=${id} AND user_id=${UID}`;
+    loan_rate=${p.loan_rate},monthly_payment=${p.monthly_payment} WHERE id=${id} AND household_id=${hid}`;
 }
-export async function deleteProperty(id: number) {
+export async function deleteProperty(hid: number, id: number) {
   await ready();
-  await sql`DELETE FROM properties WHERE id=${id} AND user_id=${UID}`;
+  await sql`DELETE FROM properties WHERE id=${id} AND household_id=${hid}`;
 }
 
 // ---------- 목표 ----------
-export async function getGoals(): Promise<Goal[]> {
+export async function getGoals(hid: number): Promise<Goal[]> {
   await ready();
-  return await sql<Goal[]>`SELECT * FROM goals WHERE user_id=${UID} ORDER BY target_date`;
+  return await sql<Goal[]>`SELECT * FROM goals WHERE household_id=${hid} ORDER BY target_date`;
 }
-export async function addGoal(g: Omit<Goal, "id" | "user_id">) {
+export async function addGoal(hid: number, g: Omit<Goal, "id" | "household_id">) {
   await ready();
-  await sql`INSERT INTO goals (user_id,name,target_amount,target_date,expected_return)
-    VALUES (${UID},${g.name},${g.target_amount},${g.target_date},${g.expected_return})`;
+  await sql`INSERT INTO goals (household_id,name,target_amount,target_date,expected_return)
+    VALUES (${hid},${g.name},${g.target_amount},${g.target_date},${g.expected_return})`;
 }
-export async function deleteGoal(id: number) {
+export async function deleteGoal(hid: number, id: number) {
   await ready();
-  await sql`DELETE FROM goals WHERE id=${id} AND user_id=${UID}`;
+  await sql`DELETE FROM goals WHERE id=${id} AND household_id=${hid}`;
 }
 
 // ---------- 순자산 스냅샷 ----------
-export async function getSnapshots() {
+export async function getSnapshots(hid: number) {
   await ready();
   return await sql<{ id: number; ym: string; total_assets: number; total_debt: number; net_worth: number }[]>`
-    SELECT * FROM net_worth_snapshots WHERE user_id=${UID} ORDER BY ym`;
+    SELECT * FROM net_worth_snapshots WHERE household_id=${hid} ORDER BY ym`;
 }
-export async function saveSnapshot(ym: string, assets: number, debt: number) {
+export async function saveSnapshot(hid: number, ym: string, assets: number, debt: number) {
   await ready();
   await sql`
-    INSERT INTO net_worth_snapshots (user_id,ym,total_assets,total_debt,net_worth)
-    VALUES (${UID},${ym},${assets},${debt},${assets - debt})
-    ON CONFLICT (user_id,ym) DO UPDATE SET
+    INSERT INTO net_worth_snapshots (household_id,ym,total_assets,total_debt,net_worth)
+    VALUES (${hid},${ym},${assets},${debt},${assets - debt})
+    ON CONFLICT (household_id,ym) DO UPDATE SET
       total_assets=EXCLUDED.total_assets, total_debt=EXCLUDED.total_debt, net_worth=EXCLUDED.net_worth`;
+}
+
+// ---------- 가구/초대 ----------
+export async function getHousehold(hid: number) {
+  await ready();
+  const rows = await sql<{ id: number; name: string; invite_code: string | null }[]>`
+    SELECT id, name, invite_code FROM households WHERE id=${hid}`;
+  return rows[0] ?? null;
+}
+
+export async function getHouseholdMembers(hid: number) {
+  await ready();
+  return await sql<{ email: string; name: string | null; image: string | null }[]>`
+    SELECT email, name, image FROM app_users WHERE household_id=${hid} ORDER BY created_at`;
+}
+
+/** 초대 코드 생성(없으면). 8자리 영숫자 */
+export async function ensureInviteCode(hid: number): Promise<string> {
+  await ready();
+  const h = await getHousehold(hid);
+  if (h?.invite_code) return h.invite_code;
+  // 충돌 가능성 거의 없는 코드 생성 (DB에서 유니크 보장)
+  for (let attempt = 0; attempt < 10; attempt++) {
+    const code = randomCode();
+    try {
+      await sql`UPDATE households SET invite_code=${code} WHERE id=${hid}`;
+      return code;
+    } catch {
+      // unique 충돌 시 재시도
+    }
+  }
+  throw new Error("초대 코드 생성 실패");
+}
+
+/** 초대 코드로 합류 → 그 코드의 household로 사용자 이동 */
+export async function joinHouseholdByCode(email: string, code: string): Promise<number | null> {
+  await ready();
+  const rows = await sql<{ id: number }[]>`SELECT id FROM households WHERE invite_code=${code}`;
+  if (rows.length === 0) return null;
+  const hid = rows[0].id;
+  await sql`UPDATE app_users SET household_id=${hid} WHERE email=${email}`;
+  return hid;
+}
+
+function randomCode(): string {
+  // Math.random 사용 불가 환경 대비: 시간+카운터 기반은 부적절하므로 crypto 사용
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // 헷갈리는 글자 제외
+  const bytes = new Uint8Array(8);
+  globalThis.crypto.getRandomValues(bytes);
+  return Array.from(bytes, (b) => chars[b % chars.length]).join("");
 }

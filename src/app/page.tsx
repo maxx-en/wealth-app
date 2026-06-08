@@ -5,6 +5,7 @@ import CashFlowHub from "@/components/CashFlowHub";
 import Investments from "@/components/Investments";
 import Goals from "@/components/Goals";
 import RealEstate from "@/components/RealEstate";
+import HouseholdSettings from "@/components/HouseholdSettings";
 
 const TABS = [
   { key: "dashboard", label: "대시보드", icon: "🏠" },
@@ -18,13 +19,20 @@ type TabKey = (typeof TABS)[number]["key"];
 
 export default function Home() {
   const [tab, setTab] = useState<TabKey>("dashboard");
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-24 pt-6 sm:pt-8">
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">내 자산 관리</h1>
-        <span className="text-xs text-neutral-400">개인용 · 자동 시세 연동</span>
+        <button
+          onClick={() => setShowSettings(true)}
+          className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
+          ⚙️ 설정 · 가족
+        </button>
       </header>
+
+      {showSettings && <HouseholdSettings onClose={() => setShowSettings(false)} />}
 
       {/* 데스크탑 탭 */}
       <nav className="mb-6 hidden gap-1 rounded-xl border border-neutral-200 bg-white p-1 sm:flex">

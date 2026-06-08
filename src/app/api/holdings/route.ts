@@ -1,5 +1,6 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getHoldings, addHolding, updateHolding, deleteHolding } from "@/lib/queries";
+import { withHousehold } from "@/lib/route-helpers";
 
 function parse(b: any) {
   return {
@@ -14,20 +15,20 @@ function parse(b: any) {
   };
 }
 
-export async function GET() {
-  return NextResponse.json(await getHoldings());
-}
-export async function POST(req: NextRequest) {
-  await addHolding(parse(await req.json()));
-  return NextResponse.json(await getHoldings());
-}
-export async function PUT(req: NextRequest) {
+export const GET = withHousehold(async (hid) => {
+  return NextResponse.json(await getHoldings(hid));
+});
+export const POST = withHousehold(async (hid, req) => {
+  await addHolding(hid, parse(await req.json()));
+  return NextResponse.json(await getHoldings(hid));
+});
+export const PUT = withHousehold(async (hid, req) => {
   const b = await req.json();
-  await updateHolding(b.id, parse(b));
-  return NextResponse.json(await getHoldings());
-}
-export async function DELETE(req: NextRequest) {
+  await updateHolding(hid, b.id, parse(b));
+  return NextResponse.json(await getHoldings(hid));
+});
+export const DELETE = withHousehold(async (hid, req) => {
   const id = Number(new URL(req.url).searchParams.get("id"));
-  await deleteHolding(id);
-  return NextResponse.json(await getHoldings());
-}
+  await deleteHolding(hid, id);
+  return NextResponse.json(await getHoldings(hid));
+});
