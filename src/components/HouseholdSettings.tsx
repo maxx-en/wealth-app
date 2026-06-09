@@ -160,6 +160,7 @@ export default function HouseholdSettings({
                 </div>
                 <Button
                   variant="ghost"
+                  className="shrink-0 whitespace-nowrap"
                   onClick={() => {
                     navigator.clipboard.writeText(inviteCode);
                     setMsg("코드 복사됨");
@@ -188,7 +189,7 @@ export default function HouseholdSettings({
                 onChange={(v) => setJoinCode(v.toUpperCase())}
                 placeholder="초대 코드 입력"
               />
-              <Button onClick={join}>합류</Button>
+              <Button onClick={join} className="shrink-0 whitespace-nowrap">합류</Button>
             </div>
           </div>
 
