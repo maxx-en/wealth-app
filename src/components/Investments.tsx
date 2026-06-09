@@ -11,6 +11,7 @@ import {
   dcaProjectionCurve,
   dcaFutureValue,
   dcaPrincipal,
+  monthsToTarget,
 } from "@/lib/finance";
 import type { Holding } from "@/lib/queries";
 import {
@@ -253,8 +254,6 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
   const [name, setName] = useState("");
   const [shares, setShares] = useState("");
   const [avgCost, setAvgCost] = useState("");
-  const [dcaMonthly, setDcaMonthly] = useState("");
-  const [dcaReturn, setDcaReturn] = useState("7");
 
   const toast = useToast();
   async function add() {
@@ -268,14 +267,11 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
         shares,
         avg_cost: avgCost,
         currency: market === "KR" ? "KRW" : "USD",
-        dca_monthly: dcaMonthly,
-        dca_expected_return: dcaReturn,
       });
       setSymbol("");
       setName("");
       setShares("");
       setAvgCost("");
-      setDcaMonthly("");
       onSaved();
       toast.success(`${symbol} 추가 완료`);
     } catch {
@@ -287,9 +283,8 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
     <Card>
       <h2 className="mb-1 font-semibold">종목 추가</h2>
       <p className="mb-3 text-xs text-muted">
-        티커로 입력 — 미국: <code>AAPL</code>, <code>VOO</code> / 국내:{" "}
+        지금 보유한 종목과 수량을 입력하면 실시간 시세로 평가돼요. 미국: <code>AAPL</code>, <code>VOO</code> / 국내:{" "}
         <code>005930.KS</code>(삼성전자), <code>069500.KS</code>(KODEX200).
-        평단·수량은 직접 입력, 현재가는 자동 조회돼요.
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Select value={market} onChange={setMarket} options={MARKET_OPTS} />
@@ -309,18 +304,7 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
           value={avgCost}
           onChange={setAvgCost}
           placeholder={`평단가 (${market === "KR" ? "원" : "$"})`}
-        />
-        <div />
-        <MoneyInput
-          value={dcaMonthly}
-          onChange={setDcaMonthly}
-          placeholder="월 적립액(원)"
-        />
-        <Input
-          type="number"
-          value={dcaReturn}
-          onChange={setDcaReturn}
-          placeholder="기대수익률 %"
+          className="col-span-2 sm:col-span-1"
         />
       </div>
       <Button onClick={add} className="mt-4 w-full">
@@ -340,28 +324,22 @@ function DcaSimulator({
   quotes: Record<string, Quote>;
   usdKrw: number;
 }) {
-  // 현재 보유 평가액 합(원) = 시뮬 시작 초기금
+  // 현재 보유 평가액 합(원) — "내 자산으로 시작" 버튼이 초기금에 채워줌
   const currentValueKrw = holdings.reduce((s, h) => {
     const price = quotes[h.symbol]?.price ?? h.avg_cost;
     const toKrw = h.currency === "USD" ? usdKrw : 1;
     return s + price * h.shares * toKrw;
   }, 0);
-  // 등록된 월 적립액 합
-  const portfolioMonthly = holdings.reduce((s, h) => s + h.dca_monthly, 0);
-  const avgReturn = holdings.length
-    ? holdings.reduce((s, h) => s + h.dca_expected_return, 0) / holdings.length
-    : 7;
 
   const [initial, setInitial] = useState("");
   const [monthly, setMonthly] = useState("");
   const [years, setYears] = useState("10");
   const [ret, setRet] = useState("7");
+  const [goal, setGoal] = useState(""); // 목표 금액(선택)
 
-  // 보유 데이터를 시뮬에 반영하는 버튼
+  // 현재 보유 평가액을 초기금으로 채우기 (적립액·수익률은 사용자가 정함)
   function useMyPortfolio() {
     setInitial(String(Math.round(currentValueKrw)));
-    setMonthly(String(Math.round(portfolioMonthly)));
-    setRet(String(Math.round(avgReturn)));
   }
 
   const ct = useChartTheme();
@@ -369,6 +347,7 @@ function DcaSimulator({
   const mo = Number(monthly) || 0;
   const yr = Number(years) || 0;
   const r = Number(ret) || 0;
+  const goalNum = Number(goal) || 0;
 
   const curve = useMemo(
     () => dcaProjectionCurve(init, mo, r, yr),
@@ -378,17 +357,27 @@ function DcaSimulator({
   const finalPrincipal = dcaPrincipal(init, mo, yr * 12);
   const profit = finalValue - finalPrincipal;
 
+  // 수익률 시나리오 비교: 보수(-2%p) / 입력값 / 낙관(+3%p)
+  const scenarios = [
+    { label: "보수적", rate: Math.max(0, r - 2) },
+    { label: "입력값", rate: r },
+    { label: "낙관적", rate: r + 3 },
+  ].map((s) => ({ ...s, value: dcaFutureValue(init, mo, s.rate, yr * 12) }));
+
+  // 목표 도달 시점
+  const reachMonths = goalNum > 0 ? monthsToTarget(init, mo, r, goalNum) : null;
+
   return (
     <Card>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold">DCA 적립 시뮬레이션</h2>
+        <h2 className="font-semibold">적립 시뮬레이션</h2>
         <Button variant="ghost" onClick={useMyPortfolio}>
-          내 포트폴리오로 채우기
+          내 자산으로 시작
         </Button>
       </div>
       <p className="mb-3 text-xs text-muted">
-        매월 일정액을 꾸준히 적립(DCA)했을 때 미래 자산을 복리로 계산해요. “내
-        포트폴리오로 채우기”를 누르면 현재 평가액·월적립액이 자동 입력됩니다.
+        매월 일정액을 꾸준히 적립(DCA)했을 때 미래 자산을 복리로 계산해요. 미래 주가는 알 수 없으니 “기대수익률”을 가정해 추정합니다.
+        “내 자산으로 시작”을 누르면 현재 보유 평가액이 초기 금액에 채워집니다.
       </p>
 
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -416,12 +405,48 @@ function DcaSimulator({
 
       <div className="mt-4 space-y-3">
         <StatCard
-          label="예상 자산"
+          label={`${yr}년 후 예상 자산`}
           value={`${formatKRW(finalValue)}원`}
           labelRight={`예상 수익 +${formatKRW(profit)}`}
           accent="up"
         />
         <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} />
+      </div>
+
+      {/* 수익률 시나리오 비교 */}
+      <div className="mt-4">
+        <div className="mb-2 text-xs font-medium text-muted">수익률 시나리오 ({yr}년 후)</div>
+        <div className="grid grid-cols-3 gap-2">
+          {scenarios.map((s) => (
+            <div key={s.label} className={`rounded-xl border p-2.5 text-center ${
+              s.label === "입력값" ? "border-accent bg-[color-mix(in_srgb,var(--accent)_12%,transparent)]" : "border-border bg-surface-2"}`}>
+              <div className="text-[11px] text-muted">{s.label} {s.rate.toFixed(0)}%</div>
+              <div className="mt-0.5 text-sm font-bold tabular-nums">{formatKRW(s.value)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* 목표 금액 도달 시점 */}
+      <div className="mt-4 rounded-xl bg-surface-2 p-3">
+        <label className="text-xs text-muted">목표 금액(원) — 언제 도달할지 계산</label>
+        <div className="mt-1.5 flex items-center gap-2">
+          <MoneyInput value={goal} onChange={setGoal} placeholder="예: 100,000,000" />
+        </div>
+        {goalNum > 0 && (
+          <div className="mt-2 text-sm">
+            {reachMonths === null ? (
+              <span className="text-down">이 조건으론 100년 내 도달하기 어려워요. 적립액이나 수익률을 높여보세요.</span>
+            ) : reachMonths === 0 ? (
+              <span className="text-up font-medium">이미 목표를 달성했어요 ✓</span>
+            ) : (
+              <span>
+                약 <span className="font-bold text-accent-strong">{Math.floor(reachMonths / 12)}년 {reachMonths % 12}개월</span> 후 도달 예상
+                <span className="text-muted"> (월 {formatKRW(mo)}원 · 수익률 {r}% 기준)</span>
+              </span>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="mt-4 h-64">

@@ -69,6 +69,33 @@ export function requiredMonthly(
   return remaining / factor;
 }
 
+/**
+ * 목표 금액에 도달하기까지 걸리는 개월 수.
+ * 초기금 initial, 매월 monthly 적립, 연 annualReturnPct 수익(월복리).
+ * 도달 불가(예: 적립 0 + 수익 0)면 null.
+ */
+export function monthsToTarget(
+  initial: number,
+  monthly: number,
+  annualReturnPct: number,
+  target: number,
+): number | null {
+  if (initial >= target) return 0;
+  const r = annualReturnPct / 100 / 12;
+  // 최대 100년(1200개월)까지 탐색
+  const MAX = 1200;
+  let lo = 0, hi = MAX;
+  // 1200개월 적립해도 목표 미달이면 도달 불가로 간주
+  if (dcaFutureValue(initial, monthly, annualReturnPct, MAX) < target) return null;
+  // 이분 탐색으로 도달 개월 수 근사
+  while (lo < hi) {
+    const mid = Math.floor((lo + hi) / 2);
+    if (dcaFutureValue(initial, monthly, annualReturnPct, mid) >= target) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
 /** 두 시점 사이 개월 수 (YYYY-MM-DD) */
 export function monthsBetween(from: Date, to: Date): number {
   return (
