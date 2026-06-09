@@ -118,6 +118,32 @@ export function Button({
   );
 }
 
+/** 켜짐/꺼짐 토글 스위치. 정기항목 사용중/일시중지 등에 사용. */
+export function Toggle({
+  on, onChange, label,
+}: {
+  on: boolean; onChange: () => void; label?: string;
+}) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      onClick={onChange}
+      className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
+        on ? "bg-accent" : "bg-border"
+      }`}
+    >
+      <span
+        className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition ${
+          on ? "translate-x-4" : "translate-x-0.5"
+        }`}
+      />
+    </button>
+  );
+}
+
 export function Field({
   label, children, className = "",
 }: {

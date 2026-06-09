@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Repeat } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Select, StatCard, statSize } from "./ui";
+import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle } from "./ui";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, savingsRate } from "@/lib/finance";
 import type { Account, Transaction, RecurringItem } from "@/lib/queries";
@@ -213,20 +213,33 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied }: 
       </div>
       <Button onClick={add} className="mt-4 w-full">정기항목 추가</Button>
 
-      <div className="mt-3 space-y-1">
-        {recurring.map((it) => (
-          <div key={it.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-surface-2">
-            <div className="flex items-center gap-2">
-              <input type="checkbox" checked={!!it.active} onChange={() => toggle(it)} />
-              <span className="text-sm">{it.memo || KIND_LABEL[it.kind]}</span>
-              <span className="text-[11px] text-muted">매월 {it.day_of_month}일</span>
+      <div className="mt-3 space-y-1.5">
+        {recurring.map((it) => {
+          const paused = !it.active;
+          return (
+            <div key={it.id} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-2">
+              <Toggle on={!paused} onChange={() => toggle(it)} label="사용 중 여부" />
+              <div className={`min-w-0 flex-1 ${paused ? "opacity-45" : ""}`}>
+                {/* 1줄: 이름 + 금액 */}
+                <div className="flex items-center justify-between gap-2">
+                  <span className="truncate text-sm font-medium">{it.memo || KIND_LABEL[it.kind]}</span>
+                  <span className={`shrink-0 text-sm font-semibold ${paused ? "line-through" : "text-text"}`}>{formatKRW(it.amount)}</span>
+                </div>
+                {/* 2줄: 주기 + 종류 + 상태 */}
+                <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted">
+                  <span>매월 {it.day_of_month}일</span>
+                  <span>·</span>
+                  <span>{KIND_LABEL[it.kind]}</span>
+                  <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
+                    paused ? "bg-surface-2 text-muted" : "bg-[color-mix(in_srgb,var(--up)_18%,transparent)] text-up"}`}>
+                    {paused ? "일시중지" : "사용 중"}
+                  </span>
+                </div>
+              </div>
+              <button onClick={() => remove(it.id)} aria-label="삭제" className="shrink-0 text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-text">{KIND_LABEL[it.kind]} {formatKRW(it.amount)}</span>
-              <button onClick={() => remove(it.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );
