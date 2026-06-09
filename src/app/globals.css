@@ -84,3 +84,13 @@ body {
     filter: invert(0.7);
   }
 }
+
+/* iOS Safari: 입력 글자가 16px 미만이면 포커스 시 자동 줌인되고 줌아웃은 안 됨.
+   모바일 폭에서만 입력 요소 글자를 16px로 올려 줌인 자체를 막는다. (데스크탑은 그대로) */
+@media (max-width: 640px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
