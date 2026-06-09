@@ -129,9 +129,10 @@ export default function Dashboard() {
       {/* 핵심 지표 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="순자산" value={`${formatKRW(ov.netWorth)}원`} valueSize={statRowSize}
-          sub={momGrowth != null ? `전월 대비 ${formatPct(momGrowth)}` : "스냅샷 2개월부터 표시"}
+          sub={momGrowth != null ? `전월 대비 ${formatPct(momGrowth)}` : "빌린 돈 뺀 실제 내 몫"}
           accent={momGrowth != null && momGrowth >= 0 ? "up" : momGrowth != null ? "down" : "neutral"} />
-        <StatCard label="총자산" value={`${formatKRW(ov.totalAssets)}원`} valueSize={statRowSize} />
+        <StatCard label="총자산" value={`${formatKRW(ov.totalAssets)}원`} valueSize={statRowSize}
+          sub="굴리는 돈 전체 (부채 포함)" />
         <StatCard label="부채" value={`${formatKRW(ov.totalDebt)}원`} valueSize={statRowSize} accent="down" />
         <StatCard label="올해 누적 성장" valueSize={statRowSize}
           value={ytdGrowth != null ? formatPct(ytdGrowth) : "—"}
