@@ -140,6 +140,16 @@ async function migrate() {
     await sql.unsafe(`ALTER TABLE ${t} ADD COLUMN IF NOT EXISTS household_id BIGINT`);
     // 예전 user_id 데이터가 있으면 household 1로 귀속
     await sql.unsafe(`UPDATE ${t} SET household_id = 1 WHERE household_id IS NULL`);
+    // 예전 user_id 컬럼이 NOT NULL로 남아 있으면 INSERT가 막힌다 → 제약 해제 (컬럼 있을 때만)
+    await sql.unsafe(`
+      DO $$ BEGIN
+        IF EXISTS (
+          SELECT 1 FROM information_schema.columns
+          WHERE table_name='${t}' AND column_name='user_id' AND is_nullable='NO'
+        ) THEN
+          EXECUTE 'ALTER TABLE ${t} ALTER COLUMN user_id DROP NOT NULL';
+        END IF;
+      END $$;`);
   }
   // app_users 컬럼 보강 (예전 버전 대비)
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS household_id BIGINT`;
