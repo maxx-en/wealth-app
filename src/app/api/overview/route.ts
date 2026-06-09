@@ -17,18 +17,20 @@ export const GET = withHousehold(async (hid) => {
   // 외부 시세 호출 없음 → 평단가를 현재가로 간주 (빈 객체)
   const quotes: Record<string, { price: number; changePct: number }> = {};
 
-  // 부채성 계좌(마이너스통장·대출)는 자산이 아니라 부채로 차감
-  const DEBT_TYPES = ["overdraft", "loan"];
-
-  // 현금/저축 (자산성 계좌 잔액 합)
-  const cash = accounts.filter((a) => a.type === "checking" || a.type === "cash")
+  // 부채는 '계좌 유형'이 아니라 '잔액 부호'로 판단한다.
+  //  - 잔액 +  → 자산 (유형별 카테고리로 합산)
+  //  - 잔액 −  → 부채 (유형 불문, 절댓값을 부채로 합산)  예: 마이너스통장이 −300만이면 부채 300만
+  const assetSum = (types: string[]) =>
+    accounts.filter((a) => types.includes(a.type) && a.balance > 0)
+      .reduce((s, a) => s + a.balance, 0);
+  const savings = assetSum(["savings"]);
+  const brokerageCash = assetSum(["brokerage"]);
+  // 저축·증권 외 양수 잔액 계좌는 모두 현금성 자산으로 (입출금·현금·마이너스통장(+) 등)
+  const cash = accounts
+    .filter((a) => a.balance > 0 && !["savings", "brokerage"].includes(a.type))
     .reduce((s, a) => s + a.balance, 0);
-  const savings = accounts.filter((a) => a.type === "savings")
-    .reduce((s, a) => s + a.balance, 0);
-  const brokerageCash = accounts.filter((a) => a.type === "brokerage")
-    .reduce((s, a) => s + a.balance, 0);
-  // 부채 계좌 잔액 합 (양수로 저장되어 있으므로 그대로 부채로 더함)
-  const accountDebt = accounts.filter((a) => DEBT_TYPES.includes(a.type))
+  // 음수 잔액 계좌 전체를 부채로 (유형 무관)
+  const accountDebt = accounts.filter((a) => a.balance < 0)
     .reduce((s, a) => s + Math.abs(a.balance), 0);
 
   // 주식 평가액 (KRW 환산)

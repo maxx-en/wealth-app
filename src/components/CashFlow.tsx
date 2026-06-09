@@ -21,9 +21,9 @@ const ACCT_TYPE_OPTS = [
   { value: "overdraft", label: "마이너스통장" },
   { value: "loan", label: "대출/기타부채" },
 ];
-// 부채성 계좌 — 잔액을 순자산에서 차감하고 화면엔 −로 표기
-const DEBT_ACCT_TYPES = ["overdraft", "loan"];
-const isDebtAccount = (type: string) => DEBT_ACCT_TYPES.includes(type);
+// 부채 여부는 계좌 유형이 아니라 '잔액 부호'로 판단한다.
+// (마이너스통장이라도 잔액이 +면 자산, −면 부채)
+const isDebtBalance = (balance: number) => balance < 0;
 
 // 종류별 기본 카테고리 (직접 입력도 가능)
 const CATEGORIES: Record<string, string[]> = {
@@ -300,16 +300,26 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied, lo
   );
 }
 
-// 계좌 잔액 인라인 수정칸 — 쉼표 표시, 포커스 벗어나면 저장. 부채면 빨강.
+// 계좌 잔액 인라인 수정칸 — 쉼표 표시, 포커스 벗어나면 저장. 음수(−)면 빨강.
+// 맨 앞에 −를 붙이면 부채(마이너스), 안 붙이면 자산(양수)로 인식한다.
 function InlineBalance({ value, onSave, isDebt = false }: { value: number; onSave: (raw: string) => void; isDebt?: boolean }) {
   const [v, setV] = useState(String(value));
   // 외부 값이 바뀌면 동기화
   useEffect(() => { setV(String(value)); }, [value]);
+  // 표시용: 쉼표 포함(음수면 -1,000,000). 입력 중 "-"나 "" 같은 미완성 상태는 그대로 보여준다.
+  const display = v === "" || v === "-" ? v
+    : Number(v).toLocaleString("en-US");
   return (
     <input
-      inputMode="numeric"
-      value={v === "" ? "" : Number(v).toLocaleString("en-US")}
-      onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))}
+      inputMode="text"
+      value={display}
+      // 숫자와 맨 앞 −만 허용
+      onChange={(e) => {
+        let raw = e.target.value.replace(/[^\d-]/g, "");
+        const neg = raw.startsWith("-");
+        raw = raw.replace(/-/g, "");
+        setV((neg ? "-" : "") + raw);
+      }}
       // 값이 실제로 바뀐 경우에만 저장한다.
       // (안 건드리고 포커스만 빠지면 저장 안 함 → 거래로 누적된 잔액 기준점이 리셋되지 않음)
       onBlur={() => { if ((Number(v) || 0) !== value) onSave(v); }}
@@ -365,7 +375,7 @@ function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; on
         {loading && <ListSkeleton rows={2} />}
         {!loading && accounts.length === 0 && <p className="py-4 text-center text-sm text-muted">등록된 계좌가 없어요</p>}
         {!loading && accounts.map((a) => {
-          const debt = isDebtAccount(a.type);
+          const debt = isDebtBalance(a.balance);
           return (
           <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
@@ -376,7 +386,6 @@ function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; on
               </div>
             </div>
             <div className="flex items-center gap-1">
-              {debt && <span className="text-sm font-medium text-down">−</span>}
               <InlineBalance value={a.balance} onSave={(v) => updateBal(a, v)} isDebt={debt} />
               <button onClick={() => remove(a.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
