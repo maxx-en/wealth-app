@@ -357,13 +357,6 @@ function DcaSimulator({
   const finalValue = dcaFutureValue(init, mo, r, yr * 12);
   const finalPrincipal = dcaPrincipal(init, mo, yr * 12);
   const profit = finalValue - finalPrincipal;
-  const dcaSize = statSize(`${formatKRW(finalValue)}원`, `${formatKRW(finalPrincipal)}원`);
-
-  // 수익률 시나리오 비교
-  const scenarios = [Math.max(0, r - 2), r, r + 3].map((sr) => ({
-    rate: sr,
-    value: dcaFutureValue(init, mo, sr, yr * 12),
-  }));
 
   return (
     <Card>
@@ -401,15 +394,14 @@ function DcaSimulator({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-2 gap-3">
+      <div className="mt-4 space-y-3">
         <StatCard
           label="예상 자산"
           value={`${formatKRW(finalValue)}원`}
-          valueSize={dcaSize}
-          sub={`예상 수익 +${formatKRW(profit)}원`}
+          labelRight={`예상 수익 +${formatKRW(profit)}`}
           accent="up"
         />
-        <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} valueSize={dcaSize} />
+        <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} />
       </div>
 
       <div className="mt-4 h-64">
@@ -459,18 +451,6 @@ function DcaSimulator({
             />
           </AreaChart>
         </ResponsiveContainer>
-      </div>
-
-      {/* 수익률 시나리오 */}
-      <div className="mt-4 grid grid-cols-3 gap-2 text-center text-sm">
-        {scenarios.map((s, i) => (
-          <div key={i} className="rounded-lg bg-surface-2 p-2">
-            <div className="text-xs text-muted">
-              수익률 {s.rate.toFixed(0)}%
-            </div>
-            <div className="font-semibold">{formatKRW(s.value)}원</div>
-          </div>
-        ))}
       </div>
     </Card>
   );

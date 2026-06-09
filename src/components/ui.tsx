@@ -66,9 +66,10 @@ export function statSize(...values: ReactNode[]) {
 }
 
 export function StatCard({
-  label, value, sub, accent = "neutral", valueSize,
+  label, value, sub, labelRight, accent = "neutral", valueSize,
 }: {
   label: string; value: ReactNode; sub?: ReactNode;
+  labelRight?: ReactNode; // 라벨 줄 오른쪽에 붙는 보조 정보 (예: 예상 수익)
   accent?: "neutral" | "up" | "down" | "accent";
   valueSize?: string; // 그룹 통일 크기. 없으면 자체 값 길이로 계산.
 }) {
@@ -79,7 +80,12 @@ export function StatCard({
   const size = valueSize ?? sizeForLen(typeof value === "string" ? value.length : 0);
   return (
     <Card>
-      <div className="text-sm text-muted">{label}</div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm text-muted">{label}</span>
+        {labelRight != null && (
+          <span className={`shrink-0 text-sm font-semibold ${subColor}`}>{labelRight}</span>
+        )}
+      </div>
       <div className={`mt-1 break-keep font-bold tracking-tight text-text tabular-nums ${size}`}>{value}</div>
       {sub != null && <div className={`mt-1 break-keep text-sm font-medium ${subColor}`}>{sub}</div>}
     </Card>
