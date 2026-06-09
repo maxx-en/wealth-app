@@ -151,6 +151,16 @@ async function migrate() {
         END IF;
       END $$;`);
   }
+  // 가구별 단순 키-값 설정(마지막 환율 등 캐시용). 외부 호출 없이 즉시 응답하기 위함.
+  await sql`
+    CREATE TABLE IF NOT EXISTS household_settings (
+      household_id BIGINT NOT NULL,
+      key TEXT NOT NULL,
+      value TEXT,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+      PRIMARY KEY (household_id, key)
+    )`;
+
   // 계좌 잔액 "기준 시각" — 이 시각 이후의 거래만 표시 잔액에 누적된다.
   // 잔액을 직접 수정하면 그 순간으로 갱신되어, 직접 수정값이 항상 기준점이 된다.
   await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS balance_updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`;

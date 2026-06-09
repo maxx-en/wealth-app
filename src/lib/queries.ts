@@ -35,6 +35,27 @@ export type Goal = {
   target_date: string; expected_return: number;
 };
 
+// ---------- 설정(키-값 캐시) ----------
+const DEFAULT_USD_KRW = 1400; // 환율을 한 번도 안 가져온 신규 유저 기본값
+
+/** 마지막으로 저장된 환율을 즉시 반환 (외부 호출 없음). 없으면 기본값 1400. */
+export async function getCachedUsdKrw(hid: number): Promise<number> {
+  await ready();
+  const rows = await sql<{ value: string }[]>`
+    SELECT value FROM household_settings WHERE household_id=${hid} AND key='usd_krw' LIMIT 1`;
+  const v = rows[0]?.value ? Number(rows[0].value) : NaN;
+  return Number.isFinite(v) && v > 0 ? v : DEFAULT_USD_KRW;
+}
+
+/** 환율 새로고침 시 가져온 값을 저장 (다음 접속 때 이 값으로 즉시 표시). */
+export async function setCachedUsdKrw(hid: number, rate: number) {
+  await ready();
+  await sql`
+    INSERT INTO household_settings (household_id, key, value, updated_at)
+    VALUES (${hid}, 'usd_krw', ${String(rate)}, now())
+    ON CONFLICT (household_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`;
+}
+
 // ---------- 계좌 ----------
 // 표시 잔액 = 기준 잔액(balance) + 기준 시각(balance_updated_at) 이후 그 계좌의 거래 합.
 // 수입은 +, 지출/저축은 − 로 누적. "기준 시각 이후"는 거래의 실제 입력 시점(created_at) 기준.

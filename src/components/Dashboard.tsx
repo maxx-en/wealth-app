@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Camera, RefreshCw } from "lucide-react";
-import { Card, Button, StatCard, statSize, useChartTheme, Loading } from "./ui";
+import { Card, Button, StatCard, statSize, useChartTheme, Skeleton } from "./ui";
 import { api, post, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -57,6 +57,24 @@ export default function Dashboard() {
   }
   useEffect(() => { load(); }, []);
 
+  // 환율·주가 업데이트: 외부에서 최신 환율을 가져와 저장(서버) 후 화면 갱신.
+  // overview는 저장된 환율을 쓰므로, 이 호출이 끝난 뒤 load()하면 새 환율이 반영된다.
+  const [refreshing, setRefreshing] = useState(false);
+  async function refreshRates() {
+    setRefreshing(true);
+    try {
+      await api("/api/quotes?symbols="); // 환율 fetch + 서버 저장
+      await load();
+      setMsg("환율·주가를 업데이트했어요");
+      setTimeout(() => setMsg(""), 2500);
+    } catch {
+      setMsg("업데이트에 실패했어요");
+      setTimeout(() => setMsg(""), 2500);
+    } finally {
+      setRefreshing(false);
+    }
+  }
+
   async function snapshot() {
     if (!ov) return;
     const s = await post("/api/snapshots", {
@@ -67,7 +85,7 @@ export default function Dashboard() {
     setTimeout(() => setMsg(""), 2500);
   }
 
-  if (loading || !ov) return <Loading label="자산 현황 불러오는 중…" />;
+  if (loading || !ov) return <DashboardSkeleton />;
 
   const pieData = [
     { name: "현금", value: ov.breakdown.cash },
@@ -118,8 +136,10 @@ export default function Dashboard() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={snapshot}><Camera size={15} strokeWidth={1.8} /> 지금 값으로 갱신</Button>
-        <Button variant="ghost" onClick={load}><RefreshCw size={15} strokeWidth={1.8} /> 시세 새로고침</Button>
-        <span className="text-xs text-muted">환율 {ov.usdKrw.toLocaleString("en-US", { maximumFractionDigits: 0 })}원/$ · 이번 달 기록은 접속 시 자동, 버튼으로 최신화</span>
+        <Button variant="ghost" onClick={refreshRates} disabled={refreshing}>
+          <RefreshCw size={15} strokeWidth={1.8} className={refreshing ? "animate-spin" : ""} /> 환율·주가 업데이트
+        </Button>
+        <span className="text-xs text-muted">환율 {ov.usdKrw.toLocaleString("en-US", { maximumFractionDigits: 0 })}원/$ · 이번 달 기록은 접속 시 자동</span>
         {msg && <span className="text-sm text-up">{msg}</span>}
       </div>
 
@@ -214,6 +234,27 @@ export default function Dashboard() {
             {trendMode === "month" ? "월별: 기록한 모든 달의 순자산" : "연별: 각 연도 마지막 기록(연말 기준) 순자산"}
           </p>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+// 로딩 중 실제 레이아웃과 같은 자리에 깜빡이는 스켈레톤을 보여준다.
+function DashboardSkeleton() {
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <Card key={i}>
+            <Skeleton className="h-4 w-16" />
+            <Skeleton className="mt-2 h-7 w-28" />
+          </Card>
+        ))}
+      </div>
+      <Skeleton className="h-10 w-72 max-w-full" />
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card><Skeleton className="h-4 w-20" /><Skeleton className="mt-4 h-48 w-full" /></Card>
+        <Card><Skeleton className="h-4 w-24" /><Skeleton className="mt-4 h-56 w-full" /></Card>
       </div>
     </div>
   );

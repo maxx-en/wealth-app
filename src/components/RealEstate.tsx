@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, Button, Input, MoneyInput, StatCard } from "./ui";
+import { Card, Button, Input, MoneyInput, StatCard, StatCardSkeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, del } from "@/lib/api";
 import { formatKRW } from "@/lib/finance";
@@ -9,6 +9,7 @@ import { X } from "lucide-react";
 
 export default function RealEstate() {
   const [props, setProps] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
   const [name, setName] = useState("");
   const [value, setValue] = useState("");
   const [loan, setLoan] = useState("");
@@ -16,7 +17,12 @@ export default function RealEstate() {
   const [payment, setPayment] = useState("");
 
   async function load() {
-    setProps(await api<Property[]>("/api/properties"));
+    setLoading(true);
+    try {
+      setProps(await api<Property[]>("/api/properties"));
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     load();
@@ -62,6 +68,7 @@ export default function RealEstate() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {loading ? <StatCardSkeleton count={4} /> : <>
         <StatCard label="부동산 시세 합" value={`${formatKRW(totalValue)}원`} />
         <StatCard
           label="대출 잔액"
@@ -74,6 +81,7 @@ export default function RealEstate() {
           accent="up"
         />
         <StatCard label="월 상환액" value={`${formatKRW(totalPayment)}원`} />
+        </>}
       </div>
 
       <Card>

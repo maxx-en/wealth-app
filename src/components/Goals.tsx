@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Field } from "./ui";
+import { Card, Button, Input, MoneyInput, Field, Skeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, del } from "@/lib/api";
 import { formatKRW, requiredMonthly, monthsBetween, dcaFutureValue } from "@/lib/finance";
@@ -12,6 +12,7 @@ type Overview = { netWorth: number };
 export default function Goals() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [netWorth, setNetWorth] = useState(0);
+  const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState("");
   const [target, setTarget] = useState("");
@@ -21,13 +22,18 @@ export default function Goals() {
   const [initial, setInitial] = useState("");
 
   async function load() {
-    const [g, o] = await Promise.all([
-      api<Goal[]>("/api/goals"),
-      api<Overview>("/api/overview"),
-    ]);
-    setGoals(g);
-    setNetWorth(o.netWorth);
-    if (!initial) setInitial(String(Math.round(o.netWorth)));
+    setLoading(true);
+    try {
+      const [g, o] = await Promise.all([
+        api<Goal[]>("/api/goals"),
+        api<Overview>("/api/overview"),
+      ]);
+      setGoals(g);
+      setNetWorth(o.netWorth);
+      if (!initial) setInitial(String(Math.round(o.netWorth)));
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
@@ -86,12 +92,15 @@ export default function Goals() {
       </Card>
 
       <div className="space-y-3">
-        {goals.length === 0 && (
+        {loading ? (
+          <Card><Skeleton className="h-5 w-32" /><Skeleton className="mt-3 h-2 w-full" /><Skeleton className="mt-3 h-12 w-full" /></Card>
+        ) : goals.length === 0 ? (
           <p className="py-8 text-center text-sm text-muted">등록된 목표가 없어요</p>
+        ) : (
+          goals.map((g) => (
+            <GoalCard key={g.id} goal={g} initial={initNum} onRemove={() => remove(g.id)} />
+          ))
         )}
-        {goals.map((g) => (
-          <GoalCard key={g.id} goal={g} initial={initNum} onRemove={() => remove(g.id)} />
-        ))}
       </div>
     </div>
   );

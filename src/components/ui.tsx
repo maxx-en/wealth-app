@@ -48,6 +48,25 @@ export function Loading({ label = "불러오는 중…" }: { label?: string }) {
   );
 }
 
+/** 스켈레톤 박스 — 로딩 중 실제 레이아웃 자리에 깜빡이는 회색 블록을 보여준다. */
+export function Skeleton({ className = "" }: { className?: string }) {
+  return <div className={`animate-pulse rounded-xl bg-surface-2 ${className}`} />;
+}
+
+/** StatCard 행 스켈레톤 — 지표 카드 자리에 로딩 표시. count개 카드. */
+export function StatCardSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <>
+      {Array.from({ length: count }).map((_, i) => (
+        <Card key={i}>
+          <Skeleton className="h-4 w-14" />
+          <Skeleton className="mt-2 h-7 w-24" />
+        </Card>
+      ))}
+    </>
+  );
+}
+
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`rounded-3xl border border-border bg-surface p-5 ${className}`}>

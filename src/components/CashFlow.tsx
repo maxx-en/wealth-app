@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Repeat } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle } from "./ui";
+import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle, StatCardSkeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, savingsRate } from "@/lib/finance";
@@ -32,17 +32,23 @@ export default function CashFlow() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [recurring, setRecurring] = useState<RecurringItem[]>([]);
+  const [loading, setLoading] = useState(true);
 
   async function loadAll() {
-    // 이 월에 등록된 정기항목을 먼저 자동 반영(중복은 서버에서 방지) 후 거래를 불러온다.
-    // → 사용자가 별도 버튼을 누를 필요 없이, 매달 페이지를 열기만 하면 고정비가 자동 기록됨.
-    await post("/api/recurring/materialize", { ym });
-    const [a, t, r] = await Promise.all([
-      api<Account[]>("/api/accounts"),
-      api<Transaction[]>(`/api/transactions?ym=${ym}`),
-      api<RecurringItem[]>("/api/recurring"),
-    ]);
-    setAccounts(a); setTxns(t); setRecurring(r);
+    setLoading(true);
+    try {
+      // 이 월에 등록된 정기항목을 먼저 자동 반영(중복은 서버에서 방지) 후 거래를 불러온다.
+      // → 사용자가 별도 버튼을 누를 필요 없이, 매달 페이지를 열기만 하면 고정비가 자동 기록됨.
+      await post("/api/recurring/materialize", { ym });
+      const [a, t, r] = await Promise.all([
+        api<Account[]>("/api/accounts"),
+        api<Transaction[]>(`/api/transactions?ym=${ym}`),
+        api<RecurringItem[]>("/api/recurring"),
+      ]);
+      setAccounts(a); setTxns(t); setRecurring(r);
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => { loadAll(); /* eslint-disable-next-line */ }, [ym]);
 
@@ -73,11 +79,13 @@ export default function CashFlow() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {loading ? <StatCardSkeleton count={4} /> : <>
         <StatCard label="수입" value={`${formatKRW(income)}원`} valueSize={summarySize} accent="up" />
         <StatCard label="지출" value={`${formatKRW(expense)}원`} valueSize={summarySize} accent="down" />
         <StatCard label="저축" value={`${formatKRW(saving)}원`} valueSize={summarySize} accent="accent" />
         <StatCard label="저축률" value={`${rate.toFixed(1)}%`} valueSize={summarySize}
           sub={`잉여 ${formatKRW(leftover)}원`} accent={leftover >= 0 ? "up" : "down"} />
+        </>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

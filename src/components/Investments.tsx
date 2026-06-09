@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { X, RefreshCw } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, useChartTheme } from "./ui";
+import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, useChartTheme, StatCardSkeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, put, del } from "@/lib/api";
 import {
@@ -41,10 +41,12 @@ export default function Investments() {
   const [quotes, setQuotes] = useState<Record<string, Quote>>({});
   const [usdKrw, setUsdKrw] = useState(1350);
   const [loading, setLoading] = useState(false);
+  const [initialLoading, setInitialLoading] = useState(true); // 첫 데이터 도착 전
 
   async function loadHoldings() {
     const h = await api<Holding[]>("/api/holdings");
     setHoldings(h);
+    setInitialLoading(false);
     return h;
   }
   async function loadQuotes(h: Holding[]) {
@@ -98,6 +100,7 @@ export default function Investments() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {initialLoading ? <StatCardSkeleton count={4} /> : <>
         <StatCard
           label="총 평가액"
           value={`${formatKRW(totalValueKrw)}원`}
@@ -117,6 +120,7 @@ export default function Investments() {
           valueSize={topSize}
           accent={totalGainKrw >= 0 ? "up" : "down"}
         />
+        </>}
       </div>
 
       <PortfolioPanel

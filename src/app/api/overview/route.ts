@@ -1,22 +1,21 @@
 import { NextResponse } from "next/server";
-import { getAccounts, getHoldings, getProperties } from "@/lib/queries";
-import { fetchQuotes, fetchUsdKrw } from "@/lib/quotes";
+import { getAccounts, getHoldings, getProperties, getCachedUsdKrw } from "@/lib/queries";
 import { withHousehold } from "@/lib/route-helpers";
 
 // 전체 자산 현황 집계 (KRW 환산). 대시보드용.
+// ⚡ 외부(야후) 시세/환율을 호출하지 않고 DB 값만으로 즉시 응답한다 → 대시보드가 빠르게 뜸.
+//   - 환율: 마지막으로 저장된 값(없으면 1400). "환율 새로고침" 버튼으로만 갱신.
+//   - 주식 평가액: 저장된 평단가(avg_cost) 기준. 최신 시세는 투자 탭/새로고침에서 반영.
 export const GET = withHousehold(async (hid) => {
-  const [accounts, holdings, properties] = await Promise.all([
+  const [accounts, holdings, properties, usdKrw] = await Promise.all([
     getAccounts(hid),
     getHoldings(hid),
     getProperties(hid),
+    getCachedUsdKrw(hid),
   ]);
 
-  // 환율과 종목 시세를 병렬로 조회 (직렬 대기 제거 → 응답 속도 개선)
-  const symbols = holdings.map((h) => h.symbol);
-  const [usdKrw, quotes] = await Promise.all([
-    fetchUsdKrw(),
-    symbols.length ? fetchQuotes(symbols) : Promise.resolve({} as Awaited<ReturnType<typeof fetchQuotes>>),
-  ]);
+  // 외부 시세 호출 없음 → 평단가를 현재가로 간주 (빈 객체)
+  const quotes: Record<string, { price: number; changePct: number }> = {};
 
   // 현금/저축 (계좌 잔액 합)
   const cash = accounts.filter((a) => a.type === "checking" || a.type === "cash")
