@@ -64,7 +64,12 @@ export default function Dashboard() {
     setRefreshing(true);
     try {
       await api("/api/quotes?symbols="); // 환율 fetch + 서버 저장
-      await load();
+      // 화면 전체를 스켈레톤으로 다시 덮지 않고, 데이터만 조용히 갱신 (버튼 스피너만)
+      const [o, s] = await Promise.all([
+        api<Overview>("/api/overview"),
+        api<Snapshot[]>("/api/snapshots"),
+      ]);
+      setOv(o); setSnaps(s);
       setMsg("환율·주가를 업데이트했어요");
       setTimeout(() => setMsg(""), 2500);
     } catch {

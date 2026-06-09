@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Repeat } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle, StatCardSkeleton } from "./ui";
+import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle, StatCardSkeleton, ListSkeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, savingsRate } from "@/lib/finance";
@@ -89,10 +89,10 @@ export default function CashFlow() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <TxnPanel ym={ym} accounts={accounts} txns={txns} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} />
+        <TxnPanel ym={ym} accounts={accounts} txns={txns} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} loading={loading} />
         <div className="space-y-6">
-          <RecurringPanel accounts={accounts} recurring={recurring} acctName={acctName} onChange={setRecurring} onApplied={loadAll} />
-          <AccountPanel accounts={accounts} onChange={setAccounts} />
+          <RecurringPanel accounts={accounts} recurring={recurring} acctName={acctName} onChange={setRecurring} onApplied={loadAll} loading={loading} />
+          <AccountPanel accounts={accounts} onChange={setAccounts} loading={loading} />
         </div>
       </div>
     </div>
@@ -100,10 +100,11 @@ export default function CashFlow() {
 }
 
 // ---------- 거래 입력/목록 ----------
-function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange }: {
+function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange, loading }: {
   ym: string; accounts: Account[]; txns: Transaction[];
   acctName: (id: number | null) => string; onChange: (t: Transaction[]) => void;
   onAccountsChange: () => void; // 거래 변경 시 계좌 표시 잔액 갱신용
+  loading: boolean;
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -164,8 +165,9 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange }: 
       <Button onClick={add} className="mt-4 w-full">추가</Button>
 
       <div className="mt-4 max-h-[360px] space-y-1 overflow-auto">
-        {txns.length === 0 && <p className="py-6 text-center text-sm text-muted">이번 달 거래가 없어요</p>}
-        {txns.map((t) => (
+        {loading && <ListSkeleton rows={3} />}
+        {!loading && txns.length === 0 && <p className="py-6 text-center text-sm text-muted">이번 달 거래가 없어요</p>}
+        {!loading && txns.map((t) => (
           <div key={t.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -193,10 +195,11 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange }: 
 }
 
 // ---------- 정기항목 ----------
-function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied }: {
+function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied, loading }: {
   accounts: Account[]; recurring: RecurringItem[];
   acctName: (id: number | null) => string; onChange: (r: RecurringItem[]) => void;
   onApplied: () => void; // 정기항목 변경 후 이번 달 거래에 즉시 반영시키기 위한 콜백
+  loading: boolean;
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -261,18 +264,16 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied }: 
       <Button onClick={add} className="mt-4 w-full">정기항목 추가</Button>
 
       <div className="mt-3 space-y-1.5">
-        {recurring.map((it) => {
+        {loading && <ListSkeleton rows={2} />}
+        {!loading && recurring.length === 0 && <p className="py-4 text-center text-sm text-muted">등록된 정기항목이 없어요</p>}
+        {!loading && recurring.map((it) => {
           const paused = !it.active;
           return (
             <div key={it.id} className="flex items-center gap-3 rounded-lg px-2 py-2 hover:bg-surface-2">
               <Toggle on={!paused} onChange={() => toggle(it)} label="사용 중 여부" />
+              {/* 이름 + 주기·종류·상태 (2줄) */}
               <div className={`min-w-0 flex-1 ${paused ? "opacity-45" : ""}`}>
-                {/* 1줄: 이름 + 금액 */}
-                <div className="flex items-center justify-between gap-2">
-                  <span className="truncate text-sm font-medium">{it.memo || KIND_LABEL[it.kind]}</span>
-                  <span className={`shrink-0 text-sm font-semibold ${paused ? "line-through" : "text-text"}`}>{formatKRW(it.amount)}</span>
-                </div>
-                {/* 2줄: 주기 + 종류 + 상태 */}
+                <div className="truncate text-sm font-medium">{it.memo || KIND_LABEL[it.kind]}</div>
                 <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted">
                   <span>매월 {it.day_of_month}일</span>
                   <span>·</span>
@@ -283,6 +284,8 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied }: 
                   </span>
                 </div>
               </div>
+              {/* 금액 — 행 전체 기준 세로 가운데 정렬 */}
+              <span className={`shrink-0 text-sm font-semibold ${paused ? "text-muted line-through" : "text-text"}`}>{formatKRW(it.amount)}</span>
               <button onClick={() => remove(it.id)} aria-label="삭제" className="shrink-0 text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
           );
@@ -310,7 +313,7 @@ function InlineBalance({ value, onSave }: { value: number; onSave: (raw: string)
 }
 
 // ---------- 계좌 ----------
-function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (a: Account[]) => void }) {
+function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; onChange: (a: Account[]) => void; loading: boolean }) {
   const [name, setName] = useState("");
   const [type, setType] = useState("checking");
   const [balance, setBalance] = useState("");
@@ -354,7 +357,9 @@ function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (
       <Button onClick={add} className="mt-4 w-full">계좌 추가</Button>
 
       <div className="mt-3 space-y-1">
-        {accounts.map((a) => (
+        {loading && <ListSkeleton rows={2} />}
+        {!loading && accounts.length === 0 && <p className="py-4 text-center text-sm text-muted">등록된 계좌가 없어요</p>}
+        {!loading && accounts.map((a) => (
           <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
               <div className="truncate text-sm">{a.name}</div>

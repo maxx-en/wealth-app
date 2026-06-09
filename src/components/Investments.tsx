@@ -100,7 +100,8 @@ export default function Investments() {
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        {initialLoading ? <StatCardSkeleton count={4} /> : <>
+        {initialLoading ? <StatCardSkeleton count={4} /> : (
+        <>
         <StatCard
           label="총 평가액"
           value={`${formatKRW(totalValueKrw)}원`}
@@ -120,7 +121,8 @@ export default function Investments() {
           valueSize={topSize}
           accent={totalGainKrw >= 0 ? "up" : "down"}
         />
-        </>}
+        </>
+        )}
       </div>
 
       <PortfolioPanel

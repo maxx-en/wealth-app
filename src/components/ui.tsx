@@ -53,6 +53,20 @@ export function Skeleton({ className = "" }: { className?: string }) {
   return <div className={`animate-pulse rounded-xl bg-surface-2 ${className}`} />;
 }
 
+/** 목록 행 스켈레톤 — 거래/계좌 등 리스트 자리에 로딩 표시. rows개 줄. */
+export function ListSkeleton({ rows = 3 }: { rows?: number }) {
+  return (
+    <div className="space-y-2">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} className="flex items-center justify-between gap-2 px-2 py-1.5">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** StatCard 행 스켈레톤 — 지표 카드 자리에 로딩 표시. count개 카드. */
 export function StatCardSkeleton({ count = 4 }: { count?: number }) {
   return (
