@@ -61,9 +61,9 @@ export default function CashFlow() {
   return (
     <div className="space-y-6">
       {/* 월 선택 + 요약 */}
-      <div className="flex items-center gap-2">
-        <Input type="month" value={ym} onChange={setYm} className="max-w-[180px]" />
-        <Button variant="ghost" onClick={applyRecurring}>이번 달 정기항목 반영</Button>
+      <div className="flex flex-wrap items-center gap-2">
+        <Input type="month" value={ym} onChange={setYm} className="w-40" />
+        <Button variant="ghost" onClick={applyRecurring} className="shrink-0 whitespace-nowrap">이번 달 정기항목 반영</Button>
         {msg && <span className="text-sm text-up">{msg}</span>}
       </div>
 

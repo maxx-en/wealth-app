@@ -139,7 +139,7 @@ function PortfolioPanel({
   }
   return (
     <Card>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">
           보유 종목{" "}
           {loading && (
@@ -358,7 +358,7 @@ function DcaSimulator({
 
   return (
     <Card>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <h2 className="font-semibold">DCA 적립 시뮬레이션</h2>
         <Button variant="ghost" onClick={useMyPortfolio}>
           내 포트폴리오로 채우기
@@ -392,18 +392,14 @@ function DcaSimulator({
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-3 gap-3">
+      <div className="mt-4 grid grid-cols-2 gap-3">
         <StatCard
-          label={`${yr}년 후 예상 자산`}
+          label="예상 자산"
           value={`${formatKRW(finalValue)}원`}
-          accent="accent"
-        />
-        <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} />
-        <StatCard
-          label="예상 수익"
-          value={`${formatKRW(profit)}원`}
+          sub={`예상 수익 +${formatKRW(profit)}원`}
           accent="up"
         />
+        <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} />
       </div>
 
       <div className="mt-4 h-64">

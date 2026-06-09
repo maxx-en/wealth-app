@@ -55,11 +55,17 @@ export function StatCard({
     accent === "up" ? "text-up" :
     accent === "down" ? "text-down" :
     accent === "accent" ? "text-accent-strong" : "text-muted";
+  // 값이 길수록(큰 금액) 글자 크기를 자동으로 줄여 카드 밖으로 넘치지 않게 한다.
+  const len = typeof value === "string" ? value.length : 0;
+  const valueSize =
+    len > 16 ? "text-base sm:text-lg" :
+    len > 12 ? "text-lg sm:text-xl" :
+    "text-xl sm:text-2xl";
   return (
     <Card>
       <div className="text-sm text-muted">{label}</div>
-      <div className="mt-1 text-2xl font-bold tracking-tight text-text">{value}</div>
-      {sub != null && <div className={`mt-1 text-sm font-medium ${subColor}`}>{sub}</div>}
+      <div className={`mt-1 break-keep font-bold tracking-tight text-text tabular-nums ${valueSize}`}>{value}</div>
+      {sub != null && <div className={`mt-1 break-keep text-sm font-medium ${subColor}`}>{sub}</div>}
     </Card>
   );
 }
@@ -78,7 +84,7 @@ export function Button({
   }[variant];
   return (
     <button type={type} onClick={onClick} disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 ${styles} ${className}`}>
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 ${styles} ${className}`}>
       {children}
     </button>
   );
@@ -98,7 +104,7 @@ export function Field({
 }
 
 const inputClass =
-  "w-full rounded-xl border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-muted outline-none transition focus:border-accent";
+  "w-full min-w-0 rounded-xl border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-muted outline-none transition focus:border-accent";
 
 export function Input({
   value, onChange, placeholder, type = "text", className = "",

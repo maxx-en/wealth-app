@@ -61,8 +61,8 @@ export default function Stats() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2">
-        <Input type="month" value={ym} onChange={setYm} className="max-w-[180px]" />
+      <div className="flex flex-wrap items-center gap-2">
+        <Input type="month" value={ym} onChange={setYm} className="w-40" />
         <span className="text-xs text-muted">월을 바꾸면 그달 기준으로 분석돼요</span>
       </div>
 
