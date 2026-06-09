@@ -11,7 +11,6 @@ import {
   dcaProjectionCurve,
   dcaFutureValue,
   dcaPrincipal,
-  monthsToTarget,
 } from "@/lib/finance";
 import type { Holding } from "@/lib/queries";
 import {
@@ -335,7 +334,6 @@ function DcaSimulator({
   const [monthly, setMonthly] = useState("");
   const [years, setYears] = useState("10");
   const [ret, setRet] = useState("7");
-  const [goal, setGoal] = useState(""); // 목표 금액(선택)
 
   // 현재 보유 평가액을 초기금으로 채우기 (적립액·수익률은 사용자가 정함)
   function useMyPortfolio() {
@@ -347,7 +345,6 @@ function DcaSimulator({
   const mo = Number(monthly) || 0;
   const yr = Number(years) || 0;
   const r = Number(ret) || 0;
-  const goalNum = Number(goal) || 0;
 
   const curve = useMemo(
     () => dcaProjectionCurve(init, mo, r, yr),
@@ -363,9 +360,6 @@ function DcaSimulator({
     { label: "입력값", rate: r },
     { label: "낙관적", rate: r + 3 },
   ].map((s) => ({ ...s, value: dcaFutureValue(init, mo, s.rate, yr * 12) }));
-
-  // 목표 도달 시점
-  const reachMonths = goalNum > 0 ? monthsToTarget(init, mo, r, goalNum) : null;
 
   return (
     <Card>
@@ -427,27 +421,10 @@ function DcaSimulator({
         </div>
       </div>
 
-      {/* 목표 금액 도달 시점 */}
-      <div className="mt-4 rounded-xl bg-surface-2 p-3">
-        <label className="text-xs text-muted">목표 금액(원) — 언제 도달할지 계산</label>
-        <div className="mt-1.5 flex items-center gap-2">
-          <MoneyInput value={goal} onChange={setGoal} placeholder="예: 100,000,000" />
-        </div>
-        {goalNum > 0 && (
-          <div className="mt-2 text-sm">
-            {reachMonths === null ? (
-              <span className="text-down">이 조건으론 100년 내 도달하기 어려워요. 적립액이나 수익률을 높여보세요.</span>
-            ) : reachMonths === 0 ? (
-              <span className="text-up font-medium">이미 목표를 달성했어요 ✓</span>
-            ) : (
-              <span>
-                약 <span className="font-bold text-accent-strong">{Math.floor(reachMonths / 12)}년 {reachMonths % 12}개월</span> 후 도달 예상
-                <span className="text-muted"> (월 {formatKRW(mo)}원 · 수익률 {r}% 기준)</span>
-              </span>
-            )}
-          </div>
-        )}
-      </div>
+      {/* 목표 금액을 정해놓고 "매월 얼마 필요?"를 알고 싶다면 → 목표 탭에서 역산해줘요 */}
+      <p className="mt-3 text-[11px] text-muted">
+        “언제까지 얼마”를 정해두고 매월 필요한 적립액을 알고 싶다면 <span className="font-medium text-text">목표 탭</span>에서 거꾸로 계산해 줘요.
+      </p>
 
       <div className="mt-4 h-64">
         <ResponsiveContainer width="100%" height="100%">
