@@ -66,7 +66,7 @@ export default function Goals() {
             <Input type="number" value={ret} onChange={setRet} />
           </Field>
         </div>
-        <Button onClick={add} className="mt-2 w-full">목표 추가</Button>
+        <Button onClick={add} className="mt-4 w-full">목표 추가</Button>
       </Card>
 
       <div className="space-y-3">

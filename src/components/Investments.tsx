@@ -303,7 +303,7 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
           placeholder="기대수익률 %"
         />
       </div>
-      <Button onClick={add} className="mt-2 w-full">
+      <Button onClick={add} className="mt-4 w-full">
         추가
       </Button>
     </Card>

@@ -1,5 +1,6 @@
 "use client";
 import { ReactNode, useEffect, useState } from "react";
+import { ChevronDown } from "lucide-react";
 
 /**
  * 차트 색상 훅 — recharts는 색을 SVG '속성'으로 넣어서 CSS 변수(var())가 안 먹는다.
@@ -104,9 +105,14 @@ export function Button({
     ghost: "bg-surface-2 text-text hover:bg-border",
     danger: "bg-[color-mix(in_srgb,var(--down)_18%,transparent)] text-down hover:bg-[color-mix(in_srgb,var(--down)_28%,transparent)]",
   }[variant];
+  // 전폭(w-full) 버튼은 폼의 메인 액션 → 더 크고 굵게 위계를 준다.
+  const isFullWidth = className.includes("w-full");
+  const sizing = isFullWidth
+    ? "px-5 py-3.5 text-base font-bold"
+    : "px-4 py-2.5 text-sm font-semibold";
   return (
     <button type={type} onClick={onClick} disabled={disabled}
-      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 ${styles} ${className}`}>
+      className={`inline-flex items-center justify-center gap-1.5 whitespace-nowrap rounded-full transition disabled:opacity-40 ${sizing} ${styles} ${className}`}>
       {children}
     </button>
   );
@@ -126,7 +132,7 @@ export function Field({
 }
 
 const inputClass =
-  "w-full min-w-0 rounded-xl border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-muted outline-none transition focus:border-accent";
+  "w-full min-w-0 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm text-text placeholder:text-muted outline-none transition focus:border-accent";
 
 export function Input({
   value, onChange, placeholder, type = "text", className = "",
@@ -192,9 +198,15 @@ export function Select({
   options: { value: string; label: string }[]; className?: string;
 }) {
   return (
-    <select value={value} onChange={(e) => onChange(e.target.value)}
-      className={`${inputClass} ${className}`}>
-      {options.map((o) => <option key={o.value} value={o.value} className="bg-surface-2 text-text">{o.label}</option>)}
-    </select>
+    <div className={`relative ${className}`}>
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className={`${inputClass} appearance-none pr-9`}>
+        {options.map((o) => <option key={o.value} value={o.value} className="bg-surface-2 text-text">{o.label}</option>)}
+      </select>
+      <ChevronDown
+        size={16} strokeWidth={1.8}
+        className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-muted"
+      />
+    </div>
   );
 }

@@ -97,7 +97,7 @@ export default function RealEstate() {
             placeholder="월 원리금(원)"
           />
         </div>
-        <Button onClick={add} className="mt-2 w-full">
+        <Button onClick={add} className="mt-4 w-full">
           추가
         </Button>
       </Card>

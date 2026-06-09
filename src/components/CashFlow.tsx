@@ -140,7 +140,7 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
           options={[{ value: "", label: "계좌 선택(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
         <Input value={memo} onChange={setMemo} placeholder="메모(선택)" />
       </div>
-      <Button onClick={add} className="mt-2 w-full">추가</Button>
+      <Button onClick={add} className="mt-4 w-full">추가</Button>
 
       <div className="mt-4 max-h-[360px] space-y-1 overflow-auto">
         {txns.length === 0 && <p className="py-6 text-center text-sm text-muted">이번 달 거래가 없어요</p>}
@@ -216,7 +216,7 @@ function RecurringPanel({ accounts, recurring, acctName, onChange }: {
           options={[{ value: "", label: "계좌(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
         <Input value={memo} onChange={setMemo} placeholder="이름 (예: 월세)" className="col-span-2" />
       </div>
-      <Button onClick={add} className="mt-2 w-full">정기항목 추가</Button>
+      <Button onClick={add} className="mt-4 w-full">정기항목 추가</Button>
 
       <div className="mt-3 space-y-1">
         {recurring.map((it) => (
@@ -277,7 +277,7 @@ function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (
         <Select value={type} onChange={setType} options={ACCT_TYPE_OPTS} />
         <MoneyInput value={balance} onChange={setBalance} placeholder="현재 잔액" className="col-span-2" />
       </div>
-      <Button onClick={add} className="mt-2 w-full">계좌 추가</Button>
+      <Button onClick={add} className="mt-4 w-full">계좌 추가</Button>
 
       <div className="mt-3 space-y-1">
         {accounts.map((a) => (
