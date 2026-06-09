@@ -7,6 +7,9 @@ async function ready() { await ensureSchema(); }
 export type Account = {
   id: number; household_id: number; name: string; type: string;
   balance: number; sort_order: number;
+  // base_balance: 마지막으로 직접 입력한 기준 잔액 (DB의 balance 원본)
+  // balance: 표시 잔액 = base_balance + 기준 시각 이후 거래 합 (계산값)
+  base_balance?: number;
 };
 export type Transaction = {
   id: number; household_id: number; account_id: number | null; kind: string;
@@ -33,17 +36,32 @@ export type Goal = {
 };
 
 // ---------- 계좌 ----------
+// 표시 잔액 = 기준 잔액(balance) + 기준 시각(balance_updated_at) 이후 그 계좌의 거래 합.
+// 수입은 +, 지출/저축은 − 로 누적. "기준 시각 이후"는 거래의 실제 입력 시점(created_at) 기준.
 export async function getAccounts(hid: number): Promise<Account[]> {
   await ready();
-  return await sql<Account[]>`SELECT * FROM accounts WHERE household_id=${hid} ORDER BY sort_order, id`;
+  const rows = await sql<(Account & { base_balance: number })[]>`
+    SELECT a.id, a.household_id, a.name, a.type, a.sort_order,
+      a.balance AS base_balance,
+      a.balance + COALESCE((
+        SELECT SUM(CASE WHEN t.kind='income' THEN t.amount ELSE -t.amount END)
+        FROM transactions t
+        WHERE t.account_id = a.id AND t.created_at > a.balance_updated_at
+      ), 0) AS balance
+    FROM accounts a
+    WHERE a.household_id=${hid}
+    ORDER BY a.sort_order, a.id`;
+  return rows;
 }
 export async function addAccount(hid: number, name: string, type: string, balance: number) {
   await ready();
-  await sql`INSERT INTO accounts (household_id,name,type,balance) VALUES (${hid},${name},${type},${balance})`;
+  // 새 계좌는 지금이 기준 시각
+  await sql`INSERT INTO accounts (household_id,name,type,balance,balance_updated_at) VALUES (${hid},${name},${type},${balance},now())`;
 }
 export async function updateAccount(hid: number, id: number, name: string, type: string, balance: number) {
   await ready();
-  await sql`UPDATE accounts SET name=${name},type=${type},balance=${balance} WHERE id=${id} AND household_id=${hid}`;
+  // 잔액을 직접 수정하면 그 순간을 새 기준 시각으로 → 이후 거래만 다시 누적된다
+  await sql`UPDATE accounts SET name=${name},type=${type},balance=${balance},balance_updated_at=now() WHERE id=${id} AND household_id=${hid}`;
 }
 export async function deleteAccount(hid: number, id: number) {
   await ready();

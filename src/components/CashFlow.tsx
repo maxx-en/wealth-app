@@ -53,6 +53,11 @@ export default function CashFlow() {
   const rate = savingsRate(income, saving);
   const acctName = (id: number | null) => accounts.find((a) => a.id === id)?.name ?? "-";
 
+  // 거래가 바뀌면 계좌 표시 잔액도 달라지므로 계좌만 다시 불러온다
+  async function reloadAccounts() {
+    setAccounts(await api<Account[]>("/api/accounts"));
+  }
+
   // 요약 4칸 글자 크기 통일 (가장 긴 값 기준)
   const summarySize = statSize(
     `${formatKRW(income)}원`, `${formatKRW(expense)}원`,
@@ -76,7 +81,7 @@ export default function CashFlow() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <TxnPanel ym={ym} accounts={accounts} txns={txns} acctName={acctName} onChange={setTxns} />
+        <TxnPanel ym={ym} accounts={accounts} txns={txns} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} />
         <div className="space-y-6">
           <RecurringPanel accounts={accounts} recurring={recurring} acctName={acctName} onChange={setRecurring} onApplied={loadAll} />
           <AccountPanel accounts={accounts} onChange={setAccounts} />
@@ -87,9 +92,10 @@ export default function CashFlow() {
 }
 
 // ---------- 거래 입력/목록 ----------
-function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
+function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange }: {
   ym: string; accounts: Account[]; txns: Transaction[];
   acctName: (id: number | null) => string; onChange: (t: Transaction[]) => void;
+  onAccountsChange: () => void; // 거래 변경 시 계좌 표시 잔액 갱신용
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -117,6 +123,7 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
       });
       onChange(r as Transaction[]);
       setAmount(""); setMemo("");
+      onAccountsChange(); // 계좌 잔액에 반영
       toast.success(`${KIND_LABEL[kind]} ${formatKRW(Number(amount))}원 추가 완료`);
     } catch {
       toast.error("추가에 실패했어요. 다시 시도해 주세요");
@@ -126,6 +133,7 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
     try {
       const r = await del(`/api/transactions?id=${id}&ym=${ym}`);
       onChange(r as Transaction[]);
+      onAccountsChange(); // 계좌 잔액에 반영
       toast.success("거래를 삭제했어요");
     } catch {
       toast.error("삭제에 실패했어요");
@@ -286,8 +294,10 @@ function InlineBalance({ value, onSave }: { value: number; onSave: (raw: string)
       inputMode="numeric"
       value={v === "" ? "" : Number(v).toLocaleString("en-US")}
       onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))}
-      onBlur={() => onSave(v)}
-      className="w-28 rounded border border-border px-2 py-1 text-right text-sm" />
+      // 값이 실제로 바뀐 경우에만 저장한다.
+      // (안 건드리고 포커스만 빠지면 저장 안 함 → 거래로 누적된 잔액 기준점이 리셋되지 않음)
+      onBlur={() => { if ((Number(v) || 0) !== value) onSave(v); }}
+      className="w-28 rounded-lg border border-border bg-surface-2 px-2 py-1 text-right text-sm text-text" />
   );
 }
 
@@ -327,7 +337,7 @@ function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (
   return (
     <Card>
       <h2 className="mb-1 font-semibold">계좌 / 잔액</h2>
-      <p className="mb-3 text-xs text-muted">은행 자동연동은 없어요. 잔액은 직접 입력·수정하면 대시보드 자산에 반영됩니다.</p>
+      <p className="mb-3 text-xs text-muted">거래를 입력하면 잔액에 자동 반영돼요. 실제 잔액과 다르면 직접 수정하면 그 값이 기준이 됩니다.</p>
       <div className="grid grid-cols-2 gap-2">
         <Input value={name} onChange={setName} placeholder="계좌 이름" />
         <Select value={type} onChange={setType} options={ACCT_TYPE_OPTS} />
