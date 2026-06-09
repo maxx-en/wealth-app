@@ -31,9 +31,11 @@ export default function CashFlow() {
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [recurring, setRecurring] = useState<RecurringItem[]>([]);
-  const [msg, setMsg] = useState("");
 
   async function loadAll() {
+    // 이 월에 등록된 정기항목을 먼저 자동 반영(중복은 서버에서 방지) 후 거래를 불러온다.
+    // → 사용자가 별도 버튼을 누를 필요 없이, 매달 페이지를 열기만 하면 고정비가 자동 기록됨.
+    await post("/api/recurring/materialize", { ym });
     const [a, t, r] = await Promise.all([
       api<Account[]>("/api/accounts"),
       api<Transaction[]>(`/api/transactions?ym=${ym}`),
@@ -56,21 +58,12 @@ export default function CashFlow() {
     `${formatKRW(saving)}원`, `${rate.toFixed(1)}%`,
   );
 
-  async function applyRecurring() {
-    const r = await post("/api/recurring/materialize", { ym });
-    setMsg(`정기항목 ${(r as any).created}건 반영됨`);
-    const t = await api<Transaction[]>(`/api/transactions?ym=${ym}`);
-    setTxns(t);
-    setTimeout(() => setMsg(""), 2500);
-  }
-
   return (
     <div className="space-y-6">
-      {/* 월 선택 + 요약 */}
+      {/* 월 선택 */}
       <div className="flex flex-wrap items-center gap-2">
         <Input type="month" value={ym} onChange={setYm} className="w-40" />
-        <Button variant="ghost" onClick={applyRecurring} className="shrink-0 whitespace-nowrap">이번 달 정기항목 반영</Button>
-        {msg && <span className="text-sm text-up">{msg}</span>}
+        <span className="text-xs text-muted">정기항목은 이 달에 자동 반영돼요</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -84,7 +77,7 @@ export default function CashFlow() {
       <div className="grid gap-6 lg:grid-cols-2">
         <TxnPanel ym={ym} accounts={accounts} txns={txns} acctName={acctName} onChange={setTxns} />
         <div className="space-y-6">
-          <RecurringPanel accounts={accounts} recurring={recurring} acctName={acctName} onChange={setRecurring} />
+          <RecurringPanel accounts={accounts} recurring={recurring} acctName={acctName} onChange={setRecurring} onApplied={loadAll} />
           <AccountPanel accounts={accounts} onChange={setAccounts} />
         </div>
       </div>
@@ -172,9 +165,10 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
 }
 
 // ---------- 정기항목 ----------
-function RecurringPanel({ accounts, recurring, acctName, onChange }: {
+function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied }: {
   accounts: Account[]; recurring: RecurringItem[];
   acctName: (id: number | null) => string; onChange: (r: RecurringItem[]) => void;
+  onApplied: () => void; // 정기항목 변경 후 이번 달 거래에 즉시 반영시키기 위한 콜백
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
@@ -196,6 +190,7 @@ function RecurringPanel({ accounts, recurring, acctName, onChange }: {
     });
     onChange(r as RecurringItem[]);
     setAmount(""); setMemo("");
+    onApplied(); // 방금 추가한 정기항목을 이번 달 거래에 바로 반영
   }
   async function remove(id: number) { onChange((await del(`/api/recurring?id=${id}`)) as RecurringItem[]); }
   async function toggle(it: RecurringItem) {
