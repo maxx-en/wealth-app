@@ -55,12 +55,12 @@ export const GET = withHousehold(async (hid) => {
   const propertyValue = properties.reduce((s, p) => s + p.market_value, 0);
   const propertyDebt = properties.reduce((s, p) => s + p.loan_balance, 0);
 
-  // 보유 자산(실제 가진 것) = 현금+저축+증권+주식+부동산시세
-  const heldAssets = cash + savings + brokerageCash + stockValue + propertyValue;
+  // 총자산 = 보유한 것 전부 (현금+저축+증권+주식+부동산 시세)
+  const totalAssets = cash + savings + brokerageCash + stockValue + propertyValue;
+  // 총부채 = 갚을 것 전부 (부동산 대출 + 계좌 부채)
   const totalDebt = propertyDebt + accountDebt;
-  // 총자산 = 보유 자산 + 부채 (빌린 돈까지 포함해 '굴리는 자금 전체' 규모)
-  const totalAssets = heldAssets + totalDebt;
-  // 순자산 = 총자산 − 부채 = 실제 내 몫 (= 보유 자산)
+  // 순자산 = 총자산 − 총부채
+  //   예: 부동산 시세 12억 → 총자산에 +12억, 대출 4억 → 부채에 +4억 → 순자산 +8억
   const netWorth = totalAssets - totalDebt;
 
   return NextResponse.json({
@@ -71,7 +71,6 @@ export const GET = withHousehold(async (hid) => {
       stock: stockValue + brokerageCash,
       property: propertyValue,
     },
-    heldAssets,
     totalAssets,
     totalDebt,
     netWorth,
