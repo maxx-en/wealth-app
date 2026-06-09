@@ -77,7 +77,30 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
 }
 
-/* 날짜/월 입력 등 네이티브 위젯 아이콘 — 다크에서만 밝게 */
+/* iOS Safari date/month 입력 정규화.
+   iOS는 이 위젯을 기본 렌더링하면 높이가 비정상적으로 커지거나(빈 값) 내부 값이
+   박스를 밀어 우측이 잘린다. appearance를 없애고 박스 모델을 강제 정규화한다. */
+input[type="date"],
+input[type="month"] {
+  -webkit-appearance: none;
+  appearance: none;
+  min-height: 0;          /* iOS가 기본 부여하는 큰 min-height 제거 */
+  height: auto;
+}
+/* 내부 값 텍스트가 폭을 넘기지 않도록 */
+input[type="date"]::-webkit-date-and-time-value,
+input[type="month"]::-webkit-date-and-time-value {
+  text-align: left;
+  margin: 0;
+}
+/* 달력 아이콘이 우측 패딩 안에 위치하도록 (잘림 방지) */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="month"]::-webkit-calendar-picker-indicator {
+  margin: 0;
+  flex-shrink: 0;
+}
+
+/* 날짜/월 입력 위젯 아이콘 — 다크에서만 밝게 */
 @media (prefers-color-scheme: dark) {
   input[type="date"]::-webkit-calendar-picker-indicator,
   input[type="month"]::-webkit-calendar-picker-indicator {
