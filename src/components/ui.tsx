@@ -45,26 +45,42 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
   );
 }
 
+// 값 길이에 따른 글자 크기 클래스. 큰 금액이 카드 밖으로 넘치지 않게 줄인다.
+function sizeForLen(len: number) {
+  return len > 16 ? "text-base sm:text-lg" :
+    len > 12 ? "text-lg sm:text-xl" :
+    "text-xl sm:text-2xl";
+}
+
+/**
+ * 한 줄에 나란히 놓인 StatCard들의 글자 크기를 통일하기 위한 헬퍼.
+ * 그룹에서 가장 긴 값에 맞춰 하나의 크기 클래스를 돌려준다.
+ * 사용: const vs = statSize(a, b, c); <StatCard valueSize={vs} ... />
+ */
+export function statSize(...values: ReactNode[]) {
+  const maxLen = Math.max(
+    0,
+    ...values.map((v) => (typeof v === "string" ? v.length : 0)),
+  );
+  return sizeForLen(maxLen);
+}
+
 export function StatCard({
-  label, value, sub, accent = "neutral",
+  label, value, sub, accent = "neutral", valueSize,
 }: {
   label: string; value: ReactNode; sub?: ReactNode;
   accent?: "neutral" | "up" | "down" | "accent";
+  valueSize?: string; // 그룹 통일 크기. 없으면 자체 값 길이로 계산.
 }) {
   const subColor =
     accent === "up" ? "text-up" :
     accent === "down" ? "text-down" :
     accent === "accent" ? "text-accent-strong" : "text-muted";
-  // 값이 길수록(큰 금액) 글자 크기를 자동으로 줄여 카드 밖으로 넘치지 않게 한다.
-  const len = typeof value === "string" ? value.length : 0;
-  const valueSize =
-    len > 16 ? "text-base sm:text-lg" :
-    len > 12 ? "text-lg sm:text-xl" :
-    "text-xl sm:text-2xl";
+  const size = valueSize ?? sizeForLen(typeof value === "string" ? value.length : 0);
   return (
     <Card>
       <div className="text-sm text-muted">{label}</div>
-      <div className={`mt-1 break-keep font-bold tracking-tight text-text tabular-nums ${valueSize}`}>{value}</div>
+      <div className={`mt-1 break-keep font-bold tracking-tight text-text tabular-nums ${size}`}>{value}</div>
       {sub != null && <div className={`mt-1 break-keep text-sm font-medium ${subColor}`}>{sub}</div>}
     </Card>
   );

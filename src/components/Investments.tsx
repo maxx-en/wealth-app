@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useMemo, useState } from "react";
 import { X, RefreshCw } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Select, StatCard, useChartTheme } from "./ui";
+import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, useChartTheme } from "./ui";
 import { api, post, put, del } from "@/lib/api";
 import {
   formatMoney,
@@ -89,23 +89,31 @@ export default function Investments() {
   const totalGainPct =
     totalCostKrw > 0 ? (totalGainKrw / totalCostKrw) * 100 : 0;
 
+  const topSize = statSize(
+    `${formatKRW(totalValueKrw)}원`, `${formatKRW(totalCostKrw)}원`,
+    `${formatKRW(totalGainKrw)}원`, formatPct(totalGainPct),
+  );
+
   return (
     <div className="space-y-6">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard
           label="총 평가액"
           value={`${formatKRW(totalValueKrw)}원`}
+          valueSize={topSize}
           sub={`환율 ${usdKrw.toFixed(0)}원/$`}
         />
-        <StatCard label="투자원금" value={`${formatKRW(totalCostKrw)}원`} />
+        <StatCard label="투자원금" value={`${formatKRW(totalCostKrw)}원`} valueSize={topSize} />
         <StatCard
           label="평가손익"
           value={`${formatKRW(totalGainKrw)}원`}
+          valueSize={topSize}
           accent={totalGainKrw >= 0 ? "up" : "down"}
         />
         <StatCard
           label="수익률"
           value={formatPct(totalGainPct)}
+          valueSize={topSize}
           accent={totalGainKrw >= 0 ? "up" : "down"}
         />
       </div>
@@ -349,6 +357,7 @@ function DcaSimulator({
   const finalValue = dcaFutureValue(init, mo, r, yr * 12);
   const finalPrincipal = dcaPrincipal(init, mo, yr * 12);
   const profit = finalValue - finalPrincipal;
+  const dcaSize = statSize(`${formatKRW(finalValue)}원`, `${formatKRW(finalPrincipal)}원`);
 
   // 수익률 시나리오 비교
   const scenarios = [Math.max(0, r - 2), r, r + 3].map((sr) => ({
@@ -396,10 +405,11 @@ function DcaSimulator({
         <StatCard
           label="예상 자산"
           value={`${formatKRW(finalValue)}원`}
+          valueSize={dcaSize}
           sub={`예상 수익 +${formatKRW(profit)}원`}
           accent="up"
         />
-        <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} />
+        <StatCard label="투입 원금" value={`${formatKRW(finalPrincipal)}원`} valueSize={dcaSize} />
       </div>
 
       <div className="mt-4 h-64">

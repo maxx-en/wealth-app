@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { X, Repeat } from "lucide-react";
-import { Card, Button, Input, MoneyInput, Select, StatCard } from "./ui";
+import { Card, Button, Input, MoneyInput, Select, StatCard, statSize } from "./ui";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, savingsRate } from "@/lib/finance";
 import type { Account, Transaction, RecurringItem } from "@/lib/queries";
@@ -50,6 +50,12 @@ export default function CashFlow() {
   const rate = savingsRate(income, saving);
   const acctName = (id: number | null) => accounts.find((a) => a.id === id)?.name ?? "-";
 
+  // 요약 4칸 글자 크기 통일 (가장 긴 값 기준)
+  const summarySize = statSize(
+    `${formatKRW(income)}원`, `${formatKRW(expense)}원`,
+    `${formatKRW(saving)}원`, `${rate.toFixed(1)}%`,
+  );
+
   async function applyRecurring() {
     const r = await post("/api/recurring/materialize", { ym });
     setMsg(`정기항목 ${(r as any).created}건 반영됨`);
@@ -68,10 +74,10 @@ export default function CashFlow() {
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="수입" value={`${formatKRW(income)}원`} accent="up" />
-        <StatCard label="지출" value={`${formatKRW(expense)}원`} accent="down" />
-        <StatCard label="저축" value={`${formatKRW(saving)}원`} accent="accent" />
-        <StatCard label="저축률" value={`${rate.toFixed(1)}%`}
+        <StatCard label="수입" value={`${formatKRW(income)}원`} valueSize={summarySize} accent="up" />
+        <StatCard label="지출" value={`${formatKRW(expense)}원`} valueSize={summarySize} accent="down" />
+        <StatCard label="저축" value={`${formatKRW(saving)}원`} valueSize={summarySize} accent="accent" />
+        <StatCard label="저축률" value={`${rate.toFixed(1)}%`} valueSize={summarySize}
           sub={`잉여 ${formatKRW(leftover)}원`} accent={leftover >= 0 ? "up" : "down"} />
       </div>
 

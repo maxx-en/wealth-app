@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, Input, StatCard, useChartTheme } from "./ui";
+import { Card, Input, StatCard, statSize, useChartTheme } from "./ui";
 import { api, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -59,6 +59,12 @@ export default function Stats() {
     return growthRate(cur[field], prev[field]);
   }
 
+  const summarySize = statSize(
+    `${formatKRW(data.summary.income)}원`,
+    `${formatKRW(data.summary.expense)}원`,
+    `${formatKRW(data.summary.saving)}원`,
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center gap-2">
@@ -68,13 +74,13 @@ export default function Stats() {
 
       {/* 이번 달 요약 + 전월 대비 */}
       <div className="grid grid-cols-3 gap-3">
-        <StatCard label="수입" value={`${formatKRW(data.summary.income)}원`}
+        <StatCard label="수입" value={`${formatKRW(data.summary.income)}원`} valueSize={summarySize}
           sub={mom("income") != null ? `전월 대비 ${formatPct(mom("income")!)}` : undefined}
           accent={mom("income") != null && mom("income")! >= 0 ? "up" : "down"} />
-        <StatCard label="지출" value={`${formatKRW(data.summary.expense)}원`}
+        <StatCard label="지출" value={`${formatKRW(data.summary.expense)}원`} valueSize={summarySize}
           sub={mom("expense") != null ? `전월 대비 ${formatPct(mom("expense")!)}` : undefined}
           accent={mom("expense") != null && mom("expense")! <= 0 ? "up" : "down"} />
-        <StatCard label="저축" value={`${formatKRW(data.summary.saving)}원`}
+        <StatCard label="저축" value={`${formatKRW(data.summary.saving)}원`} valueSize={summarySize}
           sub={mom("saving") != null ? `전월 대비 ${formatPct(mom("saving")!)}` : undefined}
           accent={mom("saving") != null && mom("saving")! >= 0 ? "up" : "down"} />
       </div>

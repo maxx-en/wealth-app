@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Camera, RefreshCw } from "lucide-react";
-import { Card, Button, StatCard, useChartTheme } from "./ui";
+import { Card, Button, StatCard, statSize, useChartTheme } from "./ui";
 import { api, post, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -86,16 +86,24 @@ export default function Dashboard() {
   sorted.forEach((s) => { byYear[s.ym.slice(0, 4)] = s.net_worth; });
   const yearData = Object.entries(byYear).map(([year, nw]) => ({ label: year, nw }));
 
+  // 핵심 지표 4칸의 글자 크기를 가장 긴 값에 맞춰 통일
+  const statRowSize = statSize(
+    `${formatKRW(ov.netWorth)}원`,
+    `${formatKRW(ov.totalAssets)}원`,
+    `${formatKRW(ov.totalDebt)}원`,
+    ytdGrowth != null ? formatPct(ytdGrowth) : "—",
+  );
+
   return (
     <div className="space-y-6">
       {/* 핵심 지표 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="순자산" value={`${formatKRW(ov.netWorth)}원`}
+        <StatCard label="순자산" value={`${formatKRW(ov.netWorth)}원`} valueSize={statRowSize}
           sub={momGrowth != null ? `전월 대비 ${formatPct(momGrowth)}` : "스냅샷 2개월부터 표시"}
           accent={momGrowth != null && momGrowth >= 0 ? "up" : momGrowth != null ? "down" : "neutral"} />
-        <StatCard label="총자산" value={`${formatKRW(ov.totalAssets)}원`} />
-        <StatCard label="부채" value={`${formatKRW(ov.totalDebt)}원`} accent="down" />
-        <StatCard label="올해 누적 성장"
+        <StatCard label="총자산" value={`${formatKRW(ov.totalAssets)}원`} valueSize={statRowSize} />
+        <StatCard label="부채" value={`${formatKRW(ov.totalDebt)}원`} valueSize={statRowSize} accent="down" />
+        <StatCard label="올해 누적 성장" valueSize={statRowSize}
           value={ytdGrowth != null ? formatPct(ytdGrowth) : "—"}
           sub={`주식 수익률 ${formatPct(ov.stockGainPct)}`}
           accent={ytdGrowth != null && ytdGrowth >= 0 ? "up" : "down"} />
