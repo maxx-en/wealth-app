@@ -18,7 +18,12 @@ const ACCT_TYPE_OPTS = [
   { value: "savings", label: "저축/예적금" },
   { value: "brokerage", label: "증권(현금)" },
   { value: "cash", label: "현금" },
+  { value: "overdraft", label: "마이너스통장" },
+  { value: "loan", label: "대출/기타부채" },
 ];
+// 부채성 계좌 — 잔액을 순자산에서 차감하고 화면엔 −로 표기
+const DEBT_ACCT_TYPES = ["overdraft", "loan"];
+const isDebtAccount = (type: string) => DEBT_ACCT_TYPES.includes(type);
 
 // 종류별 기본 카테고리 (직접 입력도 가능)
 const CATEGORIES: Record<string, string[]> = {
@@ -295,8 +300,8 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied, lo
   );
 }
 
-// 계좌 잔액 인라인 수정칸 — 쉼표 표시, 포커스 벗어나면 저장
-function InlineBalance({ value, onSave }: { value: number; onSave: (raw: string) => void }) {
+// 계좌 잔액 인라인 수정칸 — 쉼표 표시, 포커스 벗어나면 저장. 부채면 빨강.
+function InlineBalance({ value, onSave, isDebt = false }: { value: number; onSave: (raw: string) => void; isDebt?: boolean }) {
   const [v, setV] = useState(String(value));
   // 외부 값이 바뀌면 동기화
   useEffect(() => { setV(String(value)); }, [value]);
@@ -308,7 +313,7 @@ function InlineBalance({ value, onSave }: { value: number; onSave: (raw: string)
       // 값이 실제로 바뀐 경우에만 저장한다.
       // (안 건드리고 포커스만 빠지면 저장 안 함 → 거래로 누적된 잔액 기준점이 리셋되지 않음)
       onBlur={() => { if ((Number(v) || 0) !== value) onSave(v); }}
-      className="w-28 rounded-lg border border-border bg-surface-2 px-2 py-1 text-right text-sm text-text" />
+      className={`w-28 rounded-lg border border-border bg-surface-2 px-2 py-1 text-right text-sm ${isDebt ? "text-down" : "text-text"}`} />
   );
 }
 
@@ -359,18 +364,25 @@ function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; on
       <div className="mt-3 space-y-1">
         {loading && <ListSkeleton rows={2} />}
         {!loading && accounts.length === 0 && <p className="py-4 text-center text-sm text-muted">등록된 계좌가 없어요</p>}
-        {!loading && accounts.map((a) => (
+        {!loading && accounts.map((a) => {
+          const debt = isDebtAccount(a.type);
+          return (
           <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
               <div className="truncate text-sm">{a.name}</div>
-              <div className="text-[11px] text-muted">{ACCT_TYPE_OPTS.find((o) => o.value === a.type)?.label}</div>
+              <div className="text-[11px] text-muted">
+                {ACCT_TYPE_OPTS.find((o) => o.value === a.type)?.label}
+                {debt && <span className="ml-1 text-down">· 부채</span>}
+              </div>
             </div>
             <div className="flex items-center gap-1">
-              <InlineBalance value={a.balance} onSave={(v) => updateBal(a, v)} />
+              {debt && <span className="text-sm font-medium text-down">−</span>}
+              <InlineBalance value={a.balance} onSave={(v) => updateBal(a, v)} isDebt={debt} />
               <button onClick={() => remove(a.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </Card>
   );

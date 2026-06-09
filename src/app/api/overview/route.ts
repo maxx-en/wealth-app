@@ -17,13 +17,19 @@ export const GET = withHousehold(async (hid) => {
   // 외부 시세 호출 없음 → 평단가를 현재가로 간주 (빈 객체)
   const quotes: Record<string, { price: number; changePct: number }> = {};
 
-  // 현금/저축 (계좌 잔액 합)
+  // 부채성 계좌(마이너스통장·대출)는 자산이 아니라 부채로 차감
+  const DEBT_TYPES = ["overdraft", "loan"];
+
+  // 현금/저축 (자산성 계좌 잔액 합)
   const cash = accounts.filter((a) => a.type === "checking" || a.type === "cash")
     .reduce((s, a) => s + a.balance, 0);
   const savings = accounts.filter((a) => a.type === "savings")
     .reduce((s, a) => s + a.balance, 0);
   const brokerageCash = accounts.filter((a) => a.type === "brokerage")
     .reduce((s, a) => s + a.balance, 0);
+  // 부채 계좌 잔액 합 (양수로 저장되어 있으므로 그대로 부채로 더함)
+  const accountDebt = accounts.filter((a) => DEBT_TYPES.includes(a.type))
+    .reduce((s, a) => s + Math.abs(a.balance), 0);
 
   // 주식 평가액 (KRW 환산)
   let stockValue = 0;
@@ -48,7 +54,7 @@ export const GET = withHousehold(async (hid) => {
   const propertyDebt = properties.reduce((s, p) => s + p.loan_balance, 0);
 
   const totalAssets = cash + savings + brokerageCash + stockValue + propertyValue;
-  const totalDebt = propertyDebt;
+  const totalDebt = propertyDebt + accountDebt;
   const netWorth = totalAssets - totalDebt;
 
   return NextResponse.json({
