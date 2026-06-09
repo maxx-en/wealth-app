@@ -51,32 +51,39 @@ export default function Dashboard() {
         } catch { /* 스냅샷 저장 실패는 무시 — 화면은 정상 표시 */ }
       }
       setOv(o); setSnaps(snapList);
+      // 주식 보유 시: 화면은 캐시값으로 즉시 띄우되, 뒤에서 최신 시세를 받아 평가액을 갱신한다.
+      // (캐시가 없거나 오래됐어도 자동으로 현재가 기준으로 자가 보정됨 — 화면은 안 막음)
+      if (o.stockValue > 0 || (o.breakdown?.stock ?? 0) > 0) {
+        refreshRates(true);
+      }
     } finally {
       setLoading(false); // 어떤 경우에도 로딩 해제 (무한 로딩 방지)
     }
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
-  // 환율·주가 업데이트: 외부에서 최신 환율을 가져와 저장(서버) 후 화면 갱신.
-  // overview는 저장된 환율을 쓰므로, 이 호출이 끝난 뒤 load()하면 새 환율이 반영된다.
+  // 환율·주가 업데이트: 외부에서 최신 시세·환율을 가져와 저장(서버) 후 화면 갱신.
+  //  - 버튼 클릭(silent=false): 스피너 + 완료 토스트
+  //  - 자동 호출(silent=true): 조용히 평가액만 갱신 (대시보드 진입 시 주식 자가 보정용)
   const [refreshing, setRefreshing] = useState(false);
-  async function refreshRates() {
-    setRefreshing(true);
+  async function refreshRates(silent = false) {
+    if (!silent) setRefreshing(true);
     try {
-      await api("/api/quotes?symbols="); // 환율 fetch + 서버 저장
-      // 화면 전체를 스켈레톤으로 다시 덮지 않고, 데이터만 조용히 갱신 (버튼 스피너만)
-      const [o, s] = await Promise.all([
-        api<Overview>("/api/overview"),
-        api<Snapshot[]>("/api/snapshots"),
-      ]);
-      setOv(o); setSnaps(s);
-      setMsg("환율·주가를 업데이트했어요");
-      setTimeout(() => setMsg(""), 2500);
+      // 서버가 보유 종목 시세를 받아 캐시에 저장 → overview가 그 값으로 평가
+      await api("/api/quotes?symbols=");
+      const o = await api<Overview>("/api/overview");
+      setOv(o);
+      if (!silent) {
+        setMsg("환율·주가를 업데이트했어요");
+        setTimeout(() => setMsg(""), 2500);
+      }
     } catch {
-      setMsg("업데이트에 실패했어요");
-      setTimeout(() => setMsg(""), 2500);
+      if (!silent) {
+        setMsg("업데이트에 실패했어요");
+        setTimeout(() => setMsg(""), 2500);
+      }
     } finally {
-      setRefreshing(false);
+      if (!silent) setRefreshing(false);
     }
   }
 
@@ -141,7 +148,7 @@ export default function Dashboard() {
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={snapshot}><Camera size={15} strokeWidth={1.8} /> 지금 값으로 갱신</Button>
-        <Button variant="ghost" onClick={refreshRates} disabled={refreshing}>
+        <Button variant="ghost" onClick={() => refreshRates(false)} disabled={refreshing}>
           <RefreshCw size={15} strokeWidth={1.8} className={refreshing ? "animate-spin" : ""} /> 환율·주가 업데이트
         </Button>
         <span className="text-xs text-muted">환율 {ov.usdKrw.toLocaleString("en-US", { maximumFractionDigits: 0 })}원/$ · 이번 달 기록은 접속 시 자동</span>

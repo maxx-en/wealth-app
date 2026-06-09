@@ -1,21 +1,24 @@
 import { NextResponse } from "next/server";
-import { getAccounts, getHoldings, getProperties, getCachedUsdKrw } from "@/lib/queries";
+import { getAccounts, getHoldings, getProperties, getCachedUsdKrw, getCachedQuotes } from "@/lib/queries";
 import { withHousehold } from "@/lib/route-helpers";
 
 // 전체 자산 현황 집계 (KRW 환산). 대시보드용.
-// ⚡ 외부(야후) 시세/환율을 호출하지 않고 DB 값만으로 즉시 응답한다 → 대시보드가 빠르게 뜸.
-//   - 환율: 마지막으로 저장된 값(없으면 1400). "환율 새로고침" 버튼으로만 갱신.
-//   - 주식 평가액: 저장된 평단가(avg_cost) 기준. 최신 시세는 투자 탭/새로고침에서 반영.
+// ⚡ 외부(야후) 시세/환율을 호출하지 않고 DB 캐시값만으로 즉시 응답한다 → 대시보드가 빠르게 뜸.
+//   - 환율·시세: 마지막으로 "환율·주가 업데이트" 때 저장된 값 사용. 캐시 없으면 평단가로 폴백.
 export const GET = withHousehold(async (hid) => {
-  const [accounts, holdings, properties, usdKrw] = await Promise.all([
+  const [accounts, holdings, properties, usdKrw, cachedPrices] = await Promise.all([
     getAccounts(hid),
     getHoldings(hid),
     getProperties(hid),
     getCachedUsdKrw(hid),
+    getCachedQuotes(hid),
   ]);
 
-  // 외부 시세 호출 없음 → 평단가를 현재가로 간주 (빈 객체)
+  // 캐시된 현재가 맵 { 심볼: 현재가 }. 없는 종목은 평단가로 폴백.
   const quotes: Record<string, { price: number; changePct: number }> = {};
+  for (const [sym, price] of Object.entries(cachedPrices)) {
+    quotes[sym] = { price, changePct: 0 };
+  }
 
   // 부채는 '계좌 유형'이 아니라 '잔액 부호'로 판단한다.
   //  - 잔액 +  → 자산 (유형별 카테고리로 합산)

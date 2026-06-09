@@ -56,6 +56,25 @@ export async function setCachedUsdKrw(hid: number, rate: number) {
     ON CONFLICT (household_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`;
 }
 
+/** 마지막으로 저장된 종목 시세 맵 { 심볼: 현재가 }. 외부 호출 없이 즉시 반환. */
+export async function getCachedQuotes(hid: number): Promise<Record<string, number>> {
+  await ready();
+  const rows = await sql<{ value: string }[]>`
+    SELECT value FROM household_settings WHERE household_id=${hid} AND key='quotes' LIMIT 1`;
+  if (!rows[0]?.value) return {};
+  try { return JSON.parse(rows[0].value) as Record<string, number>; }
+  catch { return {}; }
+}
+
+/** 주가 업데이트 시 가져온 시세를 저장 → 대시보드가 이 값으로 평가액을 즉시 계산. */
+export async function setCachedQuotes(hid: number, prices: Record<string, number>) {
+  await ready();
+  await sql`
+    INSERT INTO household_settings (household_id, key, value, updated_at)
+    VALUES (${hid}, 'quotes', ${JSON.stringify(prices)}, now())
+    ON CONFLICT (household_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`;
+}
+
 // ---------- 계좌 ----------
 // 표시 잔액 = 기준 잔액(balance) + 기준 시각(balance_updated_at) 이후 그 계좌의 거래 합.
 // 수입은 +, 지출/저축은 − 로 누적. "기준 시각 이후"는 거래의 실제 입력 시점(created_at) 기준.
