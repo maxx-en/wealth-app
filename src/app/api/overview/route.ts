@@ -11,9 +11,12 @@ export const GET = withHousehold(async (hid) => {
     getProperties(hid),
   ]);
 
-  const usdKrw = await fetchUsdKrw();
+  // 환율과 종목 시세를 병렬로 조회 (직렬 대기 제거 → 응답 속도 개선)
   const symbols = holdings.map((h) => h.symbol);
-  const quotes = symbols.length ? await fetchQuotes(symbols) : {};
+  const [usdKrw, quotes] = await Promise.all([
+    fetchUsdKrw(),
+    symbols.length ? fetchQuotes(symbols) : Promise.resolve({} as Awaited<ReturnType<typeof fetchQuotes>>),
+  ]);
 
   // 현금/저축 (계좌 잔액 합)
   const cash = accounts.filter((a) => a.type === "checking" || a.type === "cash")

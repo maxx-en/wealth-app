@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, Input, StatCard, statSize, useChartTheme } from "./ui";
+import { Card, Input, StatCard, statSize, useChartTheme, Loading } from "./ui";
 import { api, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -41,7 +41,7 @@ export default function Stats() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [ym]);
 
-  if (!data) return <p className="py-12 text-center text-sm text-muted">불러오는 중…</p>;
+  if (!data) return <Loading />;
 
   const cats =
     kindTab === "expense" ? data.expenseByCategory :

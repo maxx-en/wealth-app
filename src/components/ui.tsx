@@ -38,6 +38,16 @@ export function useChartTheme(): ChartTheme {
   return theme;
 }
 
+/** 로딩 스피너 + 메시지. 데이터 불러오는 동안 표시. */
+export function Loading({ label = "불러오는 중…" }: { label?: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center gap-3 py-16 text-muted">
+      <span className="h-7 w-7 animate-spin rounded-full border-2 border-border border-t-accent" />
+      <span className="text-sm">{label}</span>
+    </div>
+  );
+}
+
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
     <div className={`rounded-3xl border border-border bg-surface p-5 ${className}`}>

@@ -85,8 +85,20 @@ export async function fetchQuotes(symbols: string[]): Promise<Record<string, Quo
   return map;
 }
 
-/** USD/KRW 환율 */
+/** USD/KRW 환율 (환율은 자주 안 변하므로 더 길게 캐시) */
 export async function fetchUsdKrw(): Promise<number> {
-  const q = await fetchQuote("KRW=X");
-  return q?.price ?? 1350; // 실패 시 대략값
+  try {
+    const cookie = await getYahooCookie();
+    const url = `${YF_BASE}${encodeURIComponent("KRW=X")}?interval=1d&range=1d`;
+    const res = await fetch(url, {
+      headers: { "User-Agent": UA, ...(cookie ? { Cookie: cookie } : {}) },
+      next: { revalidate: 300 }, // 환율 5분 캐시
+    });
+    if (!res.ok) return 1350;
+    const json = await res.json();
+    const meta = json?.chart?.result?.[0]?.meta;
+    return meta?.regularMarketPrice ?? meta?.previousClose ?? 1350;
+  } catch {
+    return 1350; // 실패 시 대략값
+  }
 }

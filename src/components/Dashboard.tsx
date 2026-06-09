@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Camera, RefreshCw } from "lucide-react";
-import { Card, Button, StatCard, statSize, useChartTheme } from "./ui";
+import { Card, Button, StatCard, statSize, useChartTheme, Loading } from "./ui";
 import { api, post, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -60,7 +60,7 @@ export default function Dashboard() {
     setTimeout(() => setMsg(""), 2500);
   }
 
-  if (loading || !ov) return <p className="py-12 text-center text-sm text-muted">불러오는 중…</p>;
+  if (loading || !ov) return <Loading label="자산 현황 불러오는 중…" />;
 
   const pieData = [
     { name: "현금", value: ov.breakdown.cash },
