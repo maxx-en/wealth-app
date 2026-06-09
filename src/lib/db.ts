@@ -154,6 +154,23 @@ async function migrate() {
   // app_users 컬럼 보강 (예전 버전 대비)
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS household_id BIGINT`;
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS image TEXT`;
+
+  // 스냅샷 UNIQUE(household_id, ym) 제약 보강.
+  // 예전 스키마엔 user_id 기준 제약만 있어 ON CONFLICT(household_id,ym)가 깨지고,
+  // 그 결과 대시보드의 자동 스냅샷 저장이 500으로 실패 → 무한 로딩이 됐다.
+  await sql`
+    DELETE FROM net_worth_snapshots a USING net_worth_snapshots b
+    WHERE a.id < b.id AND a.household_id=b.household_id AND a.ym=b.ym`;
+  await sql.unsafe(`
+    DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM pg_constraint
+        WHERE conname='net_worth_snapshots_hid_ym_key'
+      ) THEN
+        ALTER TABLE net_worth_snapshots
+          ADD CONSTRAINT net_worth_snapshots_hid_ym_key UNIQUE (household_id, ym);
+      END IF;
+    END $$;`);
 }
 
 /**

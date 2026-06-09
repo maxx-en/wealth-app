@@ -17,6 +17,18 @@ const YF_BASE = "https://query1.finance.yahoo.com/v8/finance/chart/";
 const UA =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/121.0 Safari/537.36";
 
+// 외부(야후) 호출이 느리거나 막혀도 대시보드가 무한 로딩에 빠지지 않도록
+// 모든 fetch에 타임아웃을 건다. 초과하면 reject → 호출부에서 null/기본값 처리.
+async function fetchWithTimeout(url: string, init: RequestInit & { next?: any }, ms = 4000) {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: ctrl.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 // 받은 쿠키를 메모리에 캐시 (서버 프로세스 단위로 재사용)
 let cachedCookie: string | null = null;
 let cookieFetchedAt = 0;
@@ -26,10 +38,10 @@ async function getYahooCookie(): Promise<string | null> {
   const now = Date.now();
   if (cachedCookie && now - cookieFetchedAt < COOKIE_TTL) return cachedCookie;
   try {
-    const res = await fetch("https://fc.yahoo.com", {
+    const res = await fetchWithTimeout("https://fc.yahoo.com", {
       headers: { "User-Agent": UA },
       redirect: "manual",
-    });
+    }, 3000);
     // set-cookie 헤더에서 쿠키 추출
     const raw = res.headers.get("set-cookie");
     if (raw) {
@@ -47,7 +59,7 @@ export async function fetchQuote(symbol: string): Promise<Quote | null> {
   try {
     const cookie = await getYahooCookie();
     const url = `${YF_BASE}${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: {
         "User-Agent": UA,
         ...(cookie ? { Cookie: cookie } : {}),
@@ -90,7 +102,7 @@ export async function fetchUsdKrw(): Promise<number> {
   try {
     const cookie = await getYahooCookie();
     const url = `${YF_BASE}${encodeURIComponent("KRW=X")}?interval=1d&range=1d`;
-    const res = await fetch(url, {
+    const res = await fetchWithTimeout(url, {
       headers: { "User-Agent": UA, ...(cookie ? { Cookie: cookie } : {}) },
       next: { revalidate: 300 }, // 환율 5분 캐시
     });

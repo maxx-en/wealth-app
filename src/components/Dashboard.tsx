@@ -30,23 +30,30 @@ export default function Dashboard() {
 
   async function load() {
     setLoading(true);
-    const [o, s] = await Promise.all([
-      api<Overview>("/api/overview"),
-      api<Snapshot[]>("/api/snapshots"),
-    ]);
-    let snapList = s;
-    // 자동 기록: 이번 달 스냅샷이 아직 없으면 현재 순자산으로 1회 자동 저장.
-    // 이미 있으면 건드리지 않음(수동으로 누른 최신값 보존).
-    const ym = currentYM();
-    const hasThisMonth = s.some((x) => x.ym === ym);
-    if (!hasThisMonth && o.totalAssets > 0) {
-      snapList = (await post("/api/snapshots", {
-        ym, total_assets: o.totalAssets, total_debt: o.totalDebt,
-      })) as Snapshot[];
-      setMsg("이번 달 순자산을 자동 기록했어요");
-      setTimeout(() => setMsg(""), 2500);
+    try {
+      const [o, s] = await Promise.all([
+        api<Overview>("/api/overview"),
+        api<Snapshot[]>("/api/snapshots"),
+      ]);
+      let snapList = s;
+      // 자동 기록: 이번 달 스냅샷이 아직 없으면 현재 순자산으로 1회 자동 저장.
+      // 이미 있으면 건드리지 않음(수동으로 누른 최신값 보존).
+      // 저장 실패해도 화면은 떠야 하므로 별도 try로 감싼다(무한 로딩 방지).
+      const ym = currentYM();
+      const hasThisMonth = s.some((x) => x.ym === ym);
+      if (!hasThisMonth && o.totalAssets > 0) {
+        try {
+          snapList = (await post("/api/snapshots", {
+            ym, total_assets: o.totalAssets, total_debt: o.totalDebt,
+          })) as Snapshot[];
+          setMsg("이번 달 순자산을 자동 기록했어요");
+          setTimeout(() => setMsg(""), 2500);
+        } catch { /* 스냅샷 저장 실패는 무시 — 화면은 정상 표시 */ }
+      }
+      setOv(o); setSnaps(snapList);
+    } finally {
+      setLoading(false); // 어떤 경우에도 로딩 해제 (무한 로딩 방지)
     }
-    setOv(o); setSnaps(snapList); setLoading(false);
   }
   useEffect(() => { load(); }, []);
 
