@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { X } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Field } from "./ui";
+import { useToast } from "./Toast";
 import { api, post, del } from "@/lib/api";
 import { formatKRW, requiredMonthly, monthsBetween, dcaFutureValue } from "@/lib/finance";
 import type { Goal } from "@/lib/queries";
@@ -30,15 +31,30 @@ export default function Goals() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, []);
 
+  const toast = useToast();
   async function add() {
-    if (!name || !target || !date) return;
-    const g = await post("/api/goals", {
-      name, target_amount: target, target_date: date, expected_return: ret,
-    });
-    setGoals(g as Goal[]);
-    setName(""); setTarget(""); setDate("");
+    if (!name.trim()) { toast.error("목표 이름을 입력해 주세요"); return; }
+    if (!target) { toast.error("목표 금액을 입력해 주세요"); return; }
+    if (!date) { toast.error("목표 날짜를 선택해 주세요"); return; }
+    try {
+      const g = await post("/api/goals", {
+        name, target_amount: target, target_date: date, expected_return: ret,
+      });
+      setGoals(g as Goal[]);
+      setName(""); setTarget(""); setDate("");
+      toast.success(`목표 “${name}” 추가 완료`);
+    } catch {
+      toast.error("추가에 실패했어요. 다시 시도해 주세요");
+    }
   }
-  async function remove(id: number) { setGoals((await del(`/api/goals?id=${id}`)) as Goal[]); }
+  async function remove(id: number) {
+    try {
+      setGoals((await del(`/api/goals?id=${id}`)) as Goal[]);
+      toast.success("목표를 삭제했어요");
+    } catch {
+      toast.error("삭제에 실패했어요");
+    }
+  }
 
   const initNum = Number(initial) || 0;
 

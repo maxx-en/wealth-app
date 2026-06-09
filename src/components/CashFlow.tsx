@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { X, Repeat } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle } from "./ui";
+import { useToast } from "./Toast";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, savingsRate } from "@/lib/finance";
 import type { Account, Transaction, RecurringItem } from "@/lib/queries";
@@ -107,17 +108,28 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
     setCategory(CATEGORIES[kind][0]);
   }
 
+  const toast = useToast();
   async function add() {
-    if (!amount) return;
-    const r = await post("/api/transactions", {
-      kind, amount, category, memo, date, account_id: accountId ? Number(accountId) : null,
-    });
-    onChange(r as Transaction[]);
-    setAmount(""); setMemo("");
+    if (!amount) { toast.error("금액을 입력해 주세요"); return; }
+    try {
+      const r = await post("/api/transactions", {
+        kind, amount, category, memo, date, account_id: accountId ? Number(accountId) : null,
+      });
+      onChange(r as Transaction[]);
+      setAmount(""); setMemo("");
+      toast.success(`${KIND_LABEL[kind]} ${formatKRW(Number(amount))}원 추가 완료`);
+    } catch {
+      toast.error("추가에 실패했어요. 다시 시도해 주세요");
+    }
   }
   async function remove(id: number) {
-    const r = await del(`/api/transactions?id=${id}&ym=${ym}`);
-    onChange(r as Transaction[]);
+    try {
+      const r = await del(`/api/transactions?id=${id}&ym=${ym}`);
+      onChange(r as Transaction[]);
+      toast.success("거래를 삭제했어요");
+    } catch {
+      toast.error("삭제에 실패했어요");
+    }
   }
 
   return (
@@ -182,25 +194,44 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied }: 
     setCategory(CATEGORIES[k]?.[0] ?? "");
   }
 
+  const toast = useToast();
   async function add() {
-    if (!amount) return;
-    const r = await post("/api/recurring", {
-      kind, amount, category, memo, day_of_month: Number(day),
-      account_id: accountId ? Number(accountId) : null,
-    });
-    onChange(r as RecurringItem[]);
-    setAmount(""); setMemo("");
-    onApplied(); // 방금 추가한 정기항목을 이번 달 거래에 바로 반영
+    if (!memo.trim()) { toast.error("이름을 입력해 주세요 (예: 월세)"); return; }
+    if (!amount) { toast.error("금액을 입력해 주세요"); return; }
+    try {
+      const r = await post("/api/recurring", {
+        kind, amount, category, memo, day_of_month: Number(day),
+        account_id: accountId ? Number(accountId) : null,
+      });
+      onChange(r as RecurringItem[]);
+      setAmount(""); setMemo("");
+      onApplied(); // 방금 추가한 정기항목을 이번 달 거래에 바로 반영
+      toast.success(`정기항목 “${memo}” 추가 완료`);
+    } catch {
+      toast.error("추가에 실패했어요. 다시 시도해 주세요");
+    }
   }
-  async function remove(id: number) { onChange((await del(`/api/recurring?id=${id}`)) as RecurringItem[]); }
+  async function remove(id: number) {
+    try {
+      onChange((await del(`/api/recurring?id=${id}`)) as RecurringItem[]);
+      toast.success("정기항목을 삭제했어요");
+    } catch {
+      toast.error("삭제에 실패했어요");
+    }
+  }
   async function toggle(it: RecurringItem) {
-    onChange((await put("/api/recurring", { id: it.id, active: it.active ? 0 : 1 })) as RecurringItem[]);
+    try {
+      onChange((await put("/api/recurring", { id: it.id, active: it.active ? 0 : 1 })) as RecurringItem[]);
+      toast.info(it.active ? "일시중지했어요" : "다시 사용해요");
+    } catch {
+      toast.error("변경에 실패했어요");
+    }
   }
 
   return (
     <Card>
       <h2 className="mb-1 font-semibold">정기항목 (매월 자동 반복)</h2>
-      <p className="mb-3 text-xs text-muted">월세·통신비·구독료·정기저축 등. 등록 후 위에서 “정기항목 반영” 누르면 그 달 거래로 생성돼요.</p>
+      <p className="mb-3 text-xs text-muted">월세·통신비·구독료·정기저축 등. 등록하면 매월 자동으로 거래에 반영돼요.</p>
       <div className="grid grid-cols-2 gap-2">
         <Select value={kind} onChange={changeKind} options={KIND_OPTS} />
         <Input type="number" value={day} onChange={setDay} placeholder="매월 며칠" />
@@ -266,14 +297,31 @@ function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (
   const [type, setType] = useState("checking");
   const [balance, setBalance] = useState("");
 
+  const toast = useToast();
   async function add() {
-    if (!name) return;
-    onChange((await post("/api/accounts", { name, type, balance })) as Account[]);
-    setName(""); setBalance("");
+    if (!name.trim()) { toast.error("계좌 이름을 입력해 주세요"); return; }
+    try {
+      onChange((await post("/api/accounts", { name, type, balance })) as Account[]);
+      setName(""); setBalance("");
+      toast.success(`계좌 “${name}” 추가 완료`);
+    } catch {
+      toast.error("추가에 실패했어요. 다시 시도해 주세요");
+    }
   }
-  async function remove(id: number) { onChange((await del(`/api/accounts?id=${id}`)) as Account[]); }
+  async function remove(id: number) {
+    try {
+      onChange((await del(`/api/accounts?id=${id}`)) as Account[]);
+      toast.success("계좌를 삭제했어요");
+    } catch {
+      toast.error("삭제에 실패했어요");
+    }
+  }
   async function updateBal(a: Account, v: string) {
-    onChange((await put("/api/accounts", { id: a.id, name: a.name, type: a.type, balance: Number(v) || 0 })) as Account[]);
+    try {
+      onChange((await put("/api/accounts", { id: a.id, name: a.name, type: a.type, balance: Number(v) || 0 })) as Account[]);
+    } catch {
+      toast.error("잔액 저장에 실패했어요");
+    }
   }
 
   return (

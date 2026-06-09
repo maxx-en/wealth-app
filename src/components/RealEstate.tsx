@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Card, Button, Input, MoneyInput, StatCard } from "./ui";
+import { useToast } from "./Toast";
 import { api, post, del } from "@/lib/api";
 import { formatKRW } from "@/lib/finance";
 import type { Property } from "@/lib/queries";
@@ -21,24 +22,36 @@ export default function RealEstate() {
     load();
   }, []);
 
+  const toast = useToast();
   async function add() {
-    if (!name) return;
-    const p = await post("/api/properties", {
-      name,
-      market_value: value,
-      loan_balance: loan,
-      loan_rate: rate,
-      monthly_payment: payment,
-    });
-    setProps(p as Property[]);
-    setName("");
-    setValue("");
-    setLoan("");
-    setRate("");
-    setPayment("");
+    if (!name.trim()) { toast.error("이름을 입력해 주세요 (예: 우리집)"); return; }
+    if (!value) { toast.error("현재 시세를 입력해 주세요"); return; }
+    try {
+      const p = await post("/api/properties", {
+        name,
+        market_value: value,
+        loan_balance: loan,
+        loan_rate: rate,
+        monthly_payment: payment,
+      });
+      setProps(p as Property[]);
+      setName("");
+      setValue("");
+      setLoan("");
+      setRate("");
+      setPayment("");
+      toast.success(`“${name}” 추가 완료`);
+    } catch {
+      toast.error("추가에 실패했어요. 다시 시도해 주세요");
+    }
   }
   async function remove(id: number) {
-    setProps((await del(`/api/properties?id=${id}`)) as Property[]);
+    try {
+      setProps((await del(`/api/properties?id=${id}`)) as Property[]);
+      toast.success("부동산을 삭제했어요");
+    } catch {
+      toast.error("삭제에 실패했어요");
+    }
   }
 
   const totalValue = props.reduce((s, p) => s + p.market_value, 0);

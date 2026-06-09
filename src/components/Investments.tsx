@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { X, RefreshCw } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, useChartTheme } from "./ui";
+import { useToast } from "./Toast";
 import { api, post, put, del } from "@/lib/api";
 import {
   formatMoney,
@@ -141,9 +142,15 @@ function PortfolioPanel({
   loading: boolean;
   onReload: () => void;
 }) {
+  const toast = useToast();
   async function remove(id: number) {
-    await del(`/api/holdings?id=${id}`);
-    onReload();
+    try {
+      await del(`/api/holdings?id=${id}`);
+      onReload();
+      toast.success("종목을 삭제했어요");
+    } catch {
+      toast.error("삭제에 실패했어요");
+    }
   }
   return (
     <Card>
@@ -243,24 +250,31 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
   const [dcaMonthly, setDcaMonthly] = useState("");
   const [dcaReturn, setDcaReturn] = useState("7");
 
+  const toast = useToast();
   async function add() {
-    if (!symbol) return;
-    await post("/api/holdings", {
-      symbol,
-      name,
-      market,
-      shares,
-      avg_cost: avgCost,
-      currency: market === "KR" ? "KRW" : "USD",
-      dca_monthly: dcaMonthly,
-      dca_expected_return: dcaReturn,
-    });
-    setSymbol("");
-    setName("");
-    setShares("");
-    setAvgCost("");
-    setDcaMonthly("");
-    onSaved();
+    if (!symbol.trim()) { toast.error("티커를 입력해 주세요 (예: AAPL)"); return; }
+    if (!shares) { toast.error("보유 수량을 입력해 주세요"); return; }
+    try {
+      await post("/api/holdings", {
+        symbol,
+        name,
+        market,
+        shares,
+        avg_cost: avgCost,
+        currency: market === "KR" ? "KRW" : "USD",
+        dca_monthly: dcaMonthly,
+        dca_expected_return: dcaReturn,
+      });
+      setSymbol("");
+      setName("");
+      setShares("");
+      setAvgCost("");
+      setDcaMonthly("");
+      onSaved();
+      toast.success(`${symbol} 추가 완료`);
+    } catch {
+      toast.error("추가에 실패했어요. 다시 시도해 주세요");
+    }
   }
 
   return (
