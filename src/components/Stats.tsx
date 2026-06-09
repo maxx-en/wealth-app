@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, Input, StatCard } from "./ui";
+import { Card, Input, StatCard, useChartTheme } from "./ui";
 import { api, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -19,8 +19,9 @@ type StatsData = {
   trend: Trend[];
 };
 
-const COLORS = ["#ef4444", "#f97316", "#f59e0b", "#84cc16", "#10b981", "#06b6d4",
-  "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#a3a3a3", "#d4d4d4"];
+// 카테고리 파이용 팔레트 — 라임을 시작점으로 한 다채로운 톤 (라이트/다크 양쪽에서 무난)
+const COLORS = ["#a3d635", "#9d7bff", "#f5b84e", "#5ec8e8", "#ff8da1", "#5fd0a8",
+  "#f08a5d", "#7c9eff", "#c98bdb", "#8fd14f", "#e6c84e", "#9aa0a6"];
 
 const KIND_TABS = [
   { key: "expense", label: "지출" },
@@ -32,6 +33,7 @@ export default function Stats() {
   const [ym, setYm] = useState(currentYM());
   const [data, setData] = useState<StatsData | null>(null);
   const [kindTab, setKindTab] = useState<"expense" | "income" | "saving">("expense");
+  const ct = useChartTheme();
 
   async function load() {
     const d = await api<StatsData>(`/api/stats?ym=${ym}&months=6`);
@@ -39,7 +41,7 @@ export default function Stats() {
   }
   useEffect(() => { load(); /* eslint-disable-next-line */ }, [ym]);
 
-  if (!data) return <p className="py-12 text-center text-sm text-neutral-400">불러오는 중…</p>;
+  if (!data) return <p className="py-12 text-center text-sm text-muted">불러오는 중…</p>;
 
   const cats =
     kindTab === "expense" ? data.expenseByCategory :
@@ -61,7 +63,7 @@ export default function Stats() {
     <div className="space-y-6">
       <div className="flex items-center gap-2">
         <Input type="month" value={ym} onChange={setYm} className="max-w-[180px]" />
-        <span className="text-xs text-neutral-400">월을 바꾸면 그달 기준으로 분석돼요</span>
+        <span className="text-xs text-muted">월을 바꾸면 그달 기준으로 분석돼요</span>
       </div>
 
       {/* 이번 달 요약 + 전월 대비 */}
@@ -81,11 +83,11 @@ export default function Stats() {
       <Card>
         <div className="mb-3 flex items-center justify-between">
           <h2 className="font-semibold">카테고리별 분석</h2>
-          <div className="flex rounded-lg border border-neutral-200 p-0.5 text-xs">
+          <div className="flex rounded-full border border-border p-0.5 text-xs">
             {KIND_TABS.map((kt) => (
               <button key={kt.key} onClick={() => setKindTab(kt.key)}
-                className={`rounded-md px-2.5 py-1 font-medium transition ${
-                  kindTab === kt.key ? "bg-neutral-900 text-white" : "text-neutral-500 hover:bg-neutral-100"}`}>
+                className={`rounded-full px-3 py-1 font-medium transition ${
+                  kindTab === kt.key ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"}`}>
                 {kt.label}
               </button>
             ))}
@@ -93,7 +95,7 @@ export default function Stats() {
         </div>
 
         {cats.length === 0 ? (
-          <p className="py-8 text-center text-sm text-neutral-400">이 달에 해당 거래가 없어요</p>
+          <p className="py-8 text-center text-sm text-muted">이 달에 해당 거래가 없어요</p>
         ) : (
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <div className="h-52 w-52 shrink-0">
@@ -102,7 +104,7 @@ export default function Stats() {
                   <Pie data={cats} dataKey="total" nameKey="category" innerRadius={50} outerRadius={85} paddingAngle={2}>
                     {cats.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
-                  <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} />
+                  <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} contentStyle={{ background: ct.surface, border: `1px solid ${ct.border}`, borderRadius: 12, color: ct.text }} />
                 </PieChart>
               </ResponsiveContainer>
             </div>
@@ -112,11 +114,11 @@ export default function Stats() {
                   <span className="flex items-center gap-2">
                     <span className="h-2.5 w-2.5 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />
                     {c.category}
-                    <span className="text-[11px] text-neutral-400">{c.cnt}건</span>
+                    <span className="text-[11px] text-muted">{c.cnt}건</span>
                   </span>
                   <span className="font-medium">
                     {formatKRW(c.total)}원
-                    <span className="ml-1 text-xs text-neutral-400">{((c.total / catTotal) * 100).toFixed(0)}%</span>
+                    <span className="ml-1 text-xs text-muted">{((c.total / catTotal) * 100).toFixed(0)}%</span>
                   </span>
                 </div>
               ))}
@@ -129,19 +131,19 @@ export default function Stats() {
       <Card>
         <h2 className="mb-3 font-semibold">월별 비교 (최근 6개월)</h2>
         {t.length === 0 ? (
-          <p className="py-8 text-center text-sm text-neutral-400">거래를 입력하면 월별 추이가 그려져요</p>
+          <p className="py-8 text-center text-sm text-muted">거래를 입력하면 월별 추이가 그려져요</p>
         ) : (
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={t} margin={{ left: 8, right: 8, top: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="ym" fontSize={11} />
-                <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} />
-                <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} />
+                <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                <XAxis dataKey="ym" fontSize={11} stroke={ct.axis} />
+                <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} stroke={ct.axis} />
+                <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} contentStyle={{ background: ct.surface, border: `1px solid ${ct.border}`, borderRadius: 12, color: ct.text }} cursor={{ fill: "#80808020" }} />
                 <Legend />
-                <Bar dataKey="income" name="수입" fill="#10b981" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expense" name="지출" fill="#ef4444" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saving" name="저축" fill="#3b82f6" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="income" name="수입" fill={ct.up} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expense" name="지출" fill={ct.down} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="saving" name="저축" fill={ct.violet} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>

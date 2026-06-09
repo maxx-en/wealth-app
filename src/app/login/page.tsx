@@ -1,3 +1,4 @@
+import { Wallet } from "lucide-react";
 import { signIn, auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 
@@ -6,11 +7,13 @@ export default async function LoginPage() {
   if (session?.user) redirect("/"); // 이미 로그인 → 홈으로
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-neutral-50 px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-8 text-center shadow-sm">
-        <div className="mb-2 text-3xl">💰</div>
+    <div className="flex min-h-screen flex-col items-center justify-center bg-bg px-6">
+      <div className="w-full max-w-sm rounded-3xl border border-border bg-surface p-8 text-center">
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-[var(--accent-text)]">
+          <Wallet size={24} strokeWidth={1.8} />
+        </div>
         <h1 className="text-xl font-bold">내 자산 관리</h1>
-        <p className="mt-1 text-sm text-neutral-500">
+        <p className="mt-1 text-sm text-muted">
           현금흐름 · 투자 · 자산 · 목표를<br />한 곳에서 관리하세요
         </p>
 
@@ -23,14 +26,14 @@ export default async function LoginPage() {
         >
           <button
             type="submit"
-            className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-300 bg-white px-4 py-3 text-sm font-medium text-neutral-700 transition hover:bg-neutral-50"
+            className="flex w-full items-center justify-center gap-2 rounded-full border border-border bg-surface-2 px-4 py-3 text-sm font-medium text-text transition hover:bg-border"
           >
             <GoogleIcon />
             Google로 계속하기
           </button>
         </form>
 
-        <p className="mt-4 text-[11px] leading-relaxed text-neutral-400">
+        <p className="mt-4 text-[11px] leading-relaxed text-muted">
           가족과 함께 쓰려면, 먼저 로그인 후<br />
           설정에서 초대 코드를 만들거나 입력하세요
         </p>

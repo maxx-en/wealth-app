@@ -7,10 +7,13 @@ export const metadata: Metadata = {
   description: "현금흐름 · 투자 · 자산 · 목표를 한 곳에서",
 };
 
-// 라이트모드 고정 (다크모드에서 색 비틀림 방지)
+// 시스템 설정에 따라 라이트/다크 자동 전환
 export const viewport = {
-  colorScheme: "light" as const,
-  themeColor: "#fafafa",
+  colorScheme: "light dark" as const,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f4f4f3" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0b" },
+  ],
 };
 
 export default function RootLayout({
@@ -20,7 +23,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="ko" className="h-full antialiased">
-      <body className="min-h-full bg-neutral-50 text-neutral-900">
+      <body className="min-h-full bg-bg text-text">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { X, Repeat } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Select, StatCard } from "./ui";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, savingsRate } from "@/lib/finance";
@@ -63,13 +64,13 @@ export default function CashFlow() {
       <div className="flex items-center gap-2">
         <Input type="month" value={ym} onChange={setYm} className="max-w-[180px]" />
         <Button variant="ghost" onClick={applyRecurring}>이번 달 정기항목 반영</Button>
-        {msg && <span className="text-sm text-emerald-600">{msg}</span>}
+        {msg && <span className="text-sm text-up">{msg}</span>}
       </div>
 
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatCard label="수입" value={`${formatKRW(income)}원`} accent="up" />
         <StatCard label="지출" value={`${formatKRW(expense)}원`} accent="down" />
-        <StatCard label="저축" value={`${formatKRW(saving)}원`} accent="blue" />
+        <StatCard label="저축" value={`${formatKRW(saving)}원`} accent="accent" />
         <StatCard label="저축률" value={`${rate.toFixed(1)}%`}
           sub={`잉여 ${formatKRW(leftover)}원`} accent={leftover >= 0 ? "up" : "down"} />
       </div>
@@ -136,26 +137,26 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange }: {
       <Button onClick={add} className="mt-2 w-full">추가</Button>
 
       <div className="mt-4 max-h-[360px] space-y-1 overflow-auto">
-        {txns.length === 0 && <p className="py-6 text-center text-sm text-neutral-400">이번 달 거래가 없어요</p>}
+        {txns.length === 0 && <p className="py-6 text-center text-sm text-muted">이번 달 거래가 없어요</p>}
         {txns.map((t) => (
-          <div key={t.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-neutral-50">
+          <div key={t.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
                 <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${
-                  t.kind === "income" ? "bg-emerald-100 text-emerald-700" :
-                  t.kind === "saving" ? "bg-blue-100 text-blue-700" : "bg-rose-100 text-rose-700"}`}>
+                  t.kind === "income" ? "bg-[color-mix(in_srgb,var(--up)_18%,transparent)] text-up" :
+                  t.kind === "saving" ? "bg-[color-mix(in_srgb,var(--violet)_18%,transparent)] text-violet" : "bg-[color-mix(in_srgb,var(--down)_18%,transparent)] text-down"}`}>
                   {KIND_LABEL[t.kind]}
                 </span>
                 <span className="truncate text-sm">{t.category || t.memo || "-"}</span>
-                {t.recurring_id && <span className="text-[10px] text-neutral-400">🔁</span>}
+                {t.recurring_id && <Repeat size={11} strokeWidth={1.8} className="text-muted" />}
               </div>
-              <div className="text-[11px] text-neutral-400">{t.date} · {acctName(t.account_id)}{t.memo && t.category ? ` · ${t.memo}` : ""}</div>
+              <div className="text-[11px] text-muted">{t.date} · {acctName(t.account_id)}{t.memo && t.category ? ` · ${t.memo}` : ""}</div>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${t.kind === "income" ? "text-emerald-600" : "text-neutral-700"}`}>
+              <span className={`text-sm font-medium ${t.kind === "income" ? "text-up" : "text-text"}`}>
                 {t.kind === "income" ? "+" : "-"}{formatKRW(t.amount)}
               </span>
-              <button onClick={() => remove(t.id)} className="text-neutral-300 hover:text-rose-500">✕</button>
+              <button onClick={() => remove(t.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
           </div>
         ))}
@@ -198,7 +199,7 @@ function RecurringPanel({ accounts, recurring, acctName, onChange }: {
   return (
     <Card>
       <h2 className="mb-1 font-semibold">정기항목 (매월 자동 반복)</h2>
-      <p className="mb-3 text-xs text-neutral-400">월세·통신비·구독료·정기저축 등. 등록 후 위에서 “정기항목 반영” 누르면 그 달 거래로 생성돼요.</p>
+      <p className="mb-3 text-xs text-muted">월세·통신비·구독료·정기저축 등. 등록 후 위에서 “정기항목 반영” 누르면 그 달 거래로 생성돼요.</p>
       <div className="grid grid-cols-2 gap-2">
         <Select value={kind} onChange={changeKind} options={KIND_OPTS} />
         <Input type="number" value={day} onChange={setDay} placeholder="매월 며칠" />
@@ -213,15 +214,15 @@ function RecurringPanel({ accounts, recurring, acctName, onChange }: {
 
       <div className="mt-3 space-y-1">
         {recurring.map((it) => (
-          <div key={it.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-neutral-50">
+          <div key={it.id} className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="flex items-center gap-2">
               <input type="checkbox" checked={!!it.active} onChange={() => toggle(it)} />
               <span className="text-sm">{it.memo || KIND_LABEL[it.kind]}</span>
-              <span className="text-[11px] text-neutral-400">매월 {it.day_of_month}일</span>
+              <span className="text-[11px] text-muted">매월 {it.day_of_month}일</span>
             </div>
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-neutral-700">{KIND_LABEL[it.kind]} {formatKRW(it.amount)}</span>
-              <button onClick={() => remove(it.id)} className="text-neutral-300 hover:text-rose-500">✕</button>
+              <span className="text-sm font-medium text-text">{KIND_LABEL[it.kind]} {formatKRW(it.amount)}</span>
+              <button onClick={() => remove(it.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
           </div>
         ))}
@@ -241,7 +242,7 @@ function InlineBalance({ value, onSave }: { value: number; onSave: (raw: string)
       value={v === "" ? "" : Number(v).toLocaleString("en-US")}
       onChange={(e) => setV(e.target.value.replace(/[^\d]/g, ""))}
       onBlur={() => onSave(v)}
-      className="w-28 rounded border border-neutral-200 px-2 py-1 text-right text-sm" />
+      className="w-28 rounded border border-border px-2 py-1 text-right text-sm" />
   );
 }
 
@@ -264,7 +265,7 @@ function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (
   return (
     <Card>
       <h2 className="mb-1 font-semibold">계좌 / 잔액</h2>
-      <p className="mb-3 text-xs text-neutral-400">은행 자동연동은 없어요. 잔액은 직접 입력·수정하면 대시보드 자산에 반영됩니다.</p>
+      <p className="mb-3 text-xs text-muted">은행 자동연동은 없어요. 잔액은 직접 입력·수정하면 대시보드 자산에 반영됩니다.</p>
       <div className="grid grid-cols-2 gap-2">
         <Input value={name} onChange={setName} placeholder="계좌 이름" />
         <Select value={type} onChange={setType} options={ACCT_TYPE_OPTS} />
@@ -274,14 +275,14 @@ function AccountPanel({ accounts, onChange }: { accounts: Account[]; onChange: (
 
       <div className="mt-3 space-y-1">
         {accounts.map((a) => (
-          <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-neutral-50">
+          <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
               <div className="truncate text-sm">{a.name}</div>
-              <div className="text-[11px] text-neutral-400">{ACCT_TYPE_OPTS.find((o) => o.value === a.type)?.label}</div>
+              <div className="text-[11px] text-muted">{ACCT_TYPE_OPTS.find((o) => o.value === a.type)?.label}</div>
             </div>
             <div className="flex items-center gap-1">
               <InlineBalance value={a.balance} onSave={(v) => updateBal(a, v)} />
-              <button onClick={() => remove(a.id)} className="text-neutral-300 hover:text-rose-500">✕</button>
+              <button onClick={() => remove(a.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
           </div>
         ))}

@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Card, Button, StatCard } from "./ui";
+import { Camera, RefreshCw } from "lucide-react";
+import { Card, Button, StatCard, useChartTheme } from "./ui";
 import { api, post, currentYM } from "@/lib/api";
 import { formatKRW, formatPct, growthRate } from "@/lib/finance";
 import {
@@ -16,7 +17,7 @@ type Overview = {
 };
 type Snapshot = { ym: string; total_assets: number; total_debt: number; net_worth: number };
 
-const PIE_COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#8b5cf6"];
+const PIE_COLORS = ["#a3d635", "#9d7bff", "#f5b84e", "#5ec8e8"];
 const PIE_LABELS = ["현금", "저축", "주식", "부동산"];
 
 export default function Dashboard() {
@@ -25,6 +26,7 @@ export default function Dashboard() {
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [trendMode, setTrendMode] = useState<"month" | "year">("month"); // 추이 그래프 단위
+  const ct = useChartTheme();
 
   async function load() {
     setLoading(true);
@@ -58,7 +60,7 @@ export default function Dashboard() {
     setTimeout(() => setMsg(""), 2500);
   }
 
-  if (loading || !ov) return <p className="py-12 text-center text-sm text-neutral-400">불러오는 중…</p>;
+  if (loading || !ov) return <p className="py-12 text-center text-sm text-muted">불러오는 중…</p>;
 
   const pieData = [
     { name: "현금", value: ov.breakdown.cash },
@@ -100,10 +102,10 @@ export default function Dashboard() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <Button onClick={snapshot}>📸 지금 값으로 갱신</Button>
-        <Button variant="ghost" onClick={load}>🔄 시세 새로고침</Button>
-        <span className="text-xs text-neutral-400">환율 {ov.usdKrw.toLocaleString("en-US", { maximumFractionDigits: 0 })}원/$ · 이번 달 기록은 접속 시 자동, 버튼으로 최신화</span>
-        {msg && <span className="text-sm text-emerald-600">{msg}</span>}
+        <Button onClick={snapshot}><Camera size={15} strokeWidth={1.8} /> 지금 값으로 갱신</Button>
+        <Button variant="ghost" onClick={load}><RefreshCw size={15} strokeWidth={1.8} /> 시세 새로고침</Button>
+        <span className="text-xs text-muted">환율 {ov.usdKrw.toLocaleString("en-US", { maximumFractionDigits: 0 })}원/$ · 이번 달 기록은 접속 시 자동, 버튼으로 최신화</span>
+        {msg && <span className="text-sm text-up">{msg}</span>}
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -111,7 +113,7 @@ export default function Dashboard() {
         <Card>
           <h2 className="mb-3 font-semibold">자산 구성</h2>
           {pieData.length === 0 ? (
-            <p className="py-8 text-center text-sm text-neutral-400">계좌·주식·부동산을 등록하면 구성이 표시돼요</p>
+            <p className="py-8 text-center text-sm text-muted">계좌·주식·부동산을 등록하면 구성이 표시돼요</p>
           ) : (
             <div className="flex items-center gap-4">
               <div className="h-48 w-48 shrink-0">
@@ -120,7 +122,7 @@ export default function Dashboard() {
                     <Pie data={pieData} dataKey="value" nameKey="name" innerRadius={45} outerRadius={75} paddingAngle={2}>
                       {pieData.map((_, i) => <Cell key={i} fill={PIE_COLORS[PIE_LABELS.indexOf(pieData[i].name)]} />)}
                     </Pie>
-                    <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} />
+                    <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} contentStyle={{ background: ct.surface, border: `1px solid ${ct.border}`, borderRadius: 12, color: ct.text }} />
                   </PieChart>
                 </ResponsiveContainer>
               </div>
@@ -132,7 +134,7 @@ export default function Dashboard() {
                       {d.name}
                     </span>
                     <span className="font-medium">{formatKRW(d.value)}원
-                      <span className="ml-1 text-xs text-neutral-400">
+                      <span className="ml-1 text-xs text-muted">
                         {((d.value / ov.totalAssets) * 100).toFixed(0)}%
                       </span>
                     </span>
@@ -148,35 +150,35 @@ export default function Dashboard() {
           <div className="mb-3 flex items-center justify-between">
             <h2 className="font-semibold">순자산 추이</h2>
             {/* 월/연 토글 */}
-            <div className="flex rounded-lg border border-neutral-200 p-0.5 text-xs">
+            <div className="flex rounded-full border border-border p-0.5 text-xs">
               <button
                 onClick={() => setTrendMode("month")}
-                className={`rounded-md px-2.5 py-1 font-medium transition ${
-                  trendMode === "month" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:bg-neutral-100"}`}>
+                className={`rounded-full px-3 py-1 font-medium transition ${
+                  trendMode === "month" ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"}`}>
                 월별
               </button>
               <button
                 onClick={() => setTrendMode("year")}
-                className={`rounded-md px-2.5 py-1 font-medium transition ${
-                  trendMode === "year" ? "bg-neutral-900 text-white" : "text-neutral-500 hover:bg-neutral-100"}`}>
+                className={`rounded-full px-3 py-1 font-medium transition ${
+                  trendMode === "year" ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"}`}>
                 연별
               </button>
             </div>
           </div>
 
           {sorted.length < 2 ? (
-            <p className="py-8 text-center text-sm text-neutral-400">
+            <p className="py-8 text-center text-sm text-muted">
               매월 “순자산 기록”을 눌러 데이터를 쌓으면 추이 그래프가 그려져요 (현재 {sorted.length}개)
             </p>
           ) : trendMode === "month" ? (
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={monthData} margin={{ left: 8, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="label" fontSize={11} />
-                  <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} />
-                  <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} labelFormatter={(l) => `${l}`} />
-                  <Line type="monotone" dataKey="nw" name="순자산" stroke="#2563eb" strokeWidth={2} dot={{ r: 3 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                  <XAxis dataKey="label" fontSize={11} stroke={ct.axis} />
+                  <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} stroke={ct.axis} />
+                  <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} labelFormatter={(l) => `${l}`} contentStyle={{ background: ct.surface, border: `1px solid ${ct.border}`, borderRadius: 12, color: ct.text }} />
+                  <Line type="monotone" dataKey="nw" name="순자산" stroke={ct.line} strokeWidth={2.5} dot={{ r: 3, fill: ct.line }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -184,16 +186,16 @@ export default function Dashboard() {
             <div className="h-56">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={yearData} margin={{ left: 8, right: 8, top: 8 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis dataKey="label" tickFormatter={(y) => `${y}년`} fontSize={11} />
-                  <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} />
-                  <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} labelFormatter={(l) => `${l}년 말`} />
-                  <Bar dataKey="nw" name="순자산" fill="#3b82f6" radius={[6, 6, 0, 0]} />
+                  <CartesianGrid strokeDasharray="3 3" stroke={ct.grid} />
+                  <XAxis dataKey="label" tickFormatter={(y) => `${y}년`} fontSize={11} stroke={ct.axis} />
+                  <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} stroke={ct.axis} />
+                  <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} labelFormatter={(l) => `${l}년 말`} contentStyle={{ background: ct.surface, border: `1px solid ${ct.border}`, borderRadius: 12, color: ct.text }} cursor={{ fill: "#80808020" }} />
+                  <Bar dataKey="nw" name="순자산" fill={ct.line} radius={[6, 6, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             </div>
           )}
-          <p className="mt-2 text-[11px] text-neutral-400">
+          <p className="mt-2 text-[11px] text-muted">
             {trendMode === "month" ? "월별: 기록한 모든 달의 순자산" : "연별: 각 연도 마지막 기록(연말 기준) 순자산"}
           </p>
         </Card>

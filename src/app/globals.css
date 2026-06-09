@@ -1,24 +1,86 @@
 @import "tailwindcss";
 
-/* 가계부 앱은 밝은 배경 기준으로 디자인됨 → 라이트모드 고정.
-   OS가 다크모드여도 색이 비틀리지 않도록 color-scheme도 light로 명시. */
+/* ── 핀테크 테마 (라이트/다크 자동 전환) ──
+   포인트 라임(--accent)은 양쪽 공통. 배경·텍스트·차트색만 모드별로 바뀐다.
+   레퍼런스(Aheadly) 무드 기준. */
+
+/* 기본 = 라이트 */
 :root {
   color-scheme: light;
-  --background: #ffffff;
-  --foreground: #171717;
+
+  --bg: #f4f4f3;          /* 앱 배경 (살짝 따뜻한 오프화이트) */
+  --surface: #ffffff;     /* 카드 */
+  --surface-2: #f1f1ef;   /* 카드 위 입력/칩 */
+  --border: #e5e4e1;      /* 경계선 */
+
+  --text: #18181b;        /* 기본 텍스트 */
+  --text-muted: #71717a;  /* 보조 텍스트 */
+
+  --accent: #c6f24e;          /* 라임 포인트 (면/배경용, 양쪽 공통) */
+  --accent-text: #1c2b08;     /* 라임 면 위 글자 */
+  --accent-strong: #5d7d18;   /* 라임 '글자' 강조용 — 라이트에선 진한 올리브라임 */
+  --violet: #7c3aed;          /* 보조 포인트 */
+  --up: #16a34a;              /* 상승/긍정 */
+  --down: #dc2626;            /* 하락/부정 */
+
+  /* 차트 */
+  --chart-line: #6b8f1d;      /* 메인 라인(라이트=진한 라임) */
+  --chart-line-2: #7c3aed;    /* 보조 라인(보라) */
+  --chart-grid: #e5e4e1;
+  --chart-axis: #9ca3af;
+}
+
+/* 시스템이 다크면 값만 교체 */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+
+    --bg: #0a0a0b;
+    --surface: #16171a;
+    --surface-2: #202227;
+    --border: #2a2c31;
+
+    --text: #f5f5f5;
+    --text-muted: #8b8d93;
+
+    --accent: #c6f24e;
+    --accent-text: #1c2b08;
+    --accent-strong: #c6f24e;  /* 다크 배경에선 라임 글자 그대로 OK */
+    --violet: #9d7bff;
+    --up: #7fe7a4;
+    --down: #ff8a8a;
+
+    --chart-line: #c6f24e;
+    --chart-line-2: #9d7bff;
+    --chart-grid: #2a2c31;
+    --chart-axis: #8b8d93;
+  }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-}
-
-html {
-  color-scheme: light;
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-text: var(--text);
+  --color-muted: var(--text-muted);
+  --color-accent: var(--accent);
+  --color-accent-strong: var(--accent-strong);
+  --color-violet: var(--violet);
+  --color-up: var(--up);
+  --color-down: var(--down);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--bg);
+  color: var(--text);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+}
+
+/* 날짜/월 입력 등 네이티브 위젯 아이콘 — 다크에서만 밝게 */
+@media (prefers-color-scheme: dark) {
+  input[type="date"]::-webkit-calendar-picker-indicator,
+  input[type="month"]::-webkit-calendar-picker-indicator {
+    filter: invert(0.7);
+  }
 }

@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { LayoutDashboard, ArrowLeftRight, TrendingUp, Target, Building2, Settings } from "lucide-react";
 import Dashboard from "@/components/Dashboard";
 import CashFlowHub from "@/components/CashFlowHub";
 import Investments from "@/components/Investments";
@@ -8,11 +9,11 @@ import RealEstate from "@/components/RealEstate";
 import HouseholdSettings from "@/components/HouseholdSettings";
 
 const TABS = [
-  { key: "dashboard", label: "대시보드", icon: "🏠" },
-  { key: "cashflow", label: "현금흐름", icon: "💸" },
-  { key: "invest", label: "투자", icon: "📈" },
-  { key: "goals", label: "목표", icon: "🎯" },
-  { key: "realestate", label: "부동산", icon: "🏢" },
+  { key: "dashboard", label: "대시보드", Icon: LayoutDashboard },
+  { key: "cashflow", label: "현금흐름", Icon: ArrowLeftRight },
+  { key: "invest", label: "투자", Icon: TrendingUp },
+  { key: "goals", label: "목표", Icon: Target },
+  { key: "realestate", label: "부동산", Icon: Building2 },
 ] as const;
 
 type TabKey = (typeof TABS)[number]["key"];
@@ -22,30 +23,30 @@ export default function Home() {
   const [showSettings, setShowSettings] = useState(false);
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-24 pt-6 sm:pt-8">
+    <div className="mx-auto max-w-5xl px-4 pb-28 pt-6 sm:pt-8">
       <header className="mb-6 flex items-center justify-between">
         <h1 className="text-xl font-bold tracking-tight">내 자산 관리</h1>
         <button
           onClick={() => setShowSettings(true)}
-          className="flex items-center gap-1 rounded-lg border border-neutral-200 bg-white px-3 py-1.5 text-xs font-medium text-neutral-600 hover:bg-neutral-50">
-          ⚙️ 설정 · 가족
+          className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-2 text-xs font-medium text-muted transition hover:text-text">
+          <Settings size={15} strokeWidth={1.8} /> 설정 · 가족
         </button>
       </header>
 
       {showSettings && <HouseholdSettings onClose={() => setShowSettings(false)} />}
 
       {/* 데스크탑 탭 */}
-      <nav className="mb-6 hidden gap-1 rounded-xl border border-neutral-200 bg-white p-1 sm:flex">
-        {TABS.map((t) => (
+      <nav className="mb-6 hidden gap-1 rounded-2xl border border-border bg-surface p-1 sm:flex">
+        {TABS.map(({ key, label, Icon }) => (
           <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
-              tab === t.key ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"
+            key={key}
+            onClick={() => setTab(key)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-medium transition ${
+              tab === key ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"
             }`}
           >
-            <span className="mr-1">{t.icon}</span>
-            {t.label}
+            <Icon size={17} strokeWidth={1.8} />
+            {label}
           </button>
         ))}
       </nav>
@@ -59,19 +60,24 @@ export default function Home() {
       </main>
 
       {/* 모바일 하단 탭바 */}
-      <nav className="fixed inset-x-0 bottom-0 z-10 flex border-t border-neutral-200 bg-white/95 backdrop-blur sm:hidden">
-        {TABS.map((t) => (
-          <button
-            key={t.key}
-            onClick={() => setTab(t.key)}
-            className={`flex flex-1 flex-col items-center gap-0.5 py-2 text-[11px] font-medium ${
-              tab === t.key ? "text-neutral-900" : "text-neutral-400"
-            }`}
-          >
-            <span className="text-base">{t.icon}</span>
-            {t.label}
-          </button>
-        ))}
+      <nav className="fixed inset-x-0 bottom-0 z-10 flex justify-center pb-5 sm:hidden">
+        <div className="flex items-center gap-1 rounded-full border border-border bg-surface/95 px-2 py-2 backdrop-blur">
+          {TABS.map(({ key, label, Icon }) => {
+            const active = tab === key;
+            return (
+              <button
+                key={key}
+                onClick={() => setTab(key)}
+                aria-label={label}
+                className={`flex h-11 w-11 items-center justify-center rounded-full transition ${
+                  active ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"
+                }`}
+              >
+                <Icon size={20} strokeWidth={1.8} />
+              </button>
+            );
+          })}
+        </div>
       </nav>
     </div>
   );

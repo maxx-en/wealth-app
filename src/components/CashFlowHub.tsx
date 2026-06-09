@@ -1,5 +1,6 @@
 "use client";
 import { useState } from "react";
+import { PencilLine, PieChart } from "lucide-react";
 import CashFlow from "./CashFlow";
 import Stats from "./Stats";
 
@@ -9,18 +10,18 @@ export default function CashFlowHub() {
 
   return (
     <div className="space-y-5">
-      <div className="flex rounded-xl border border-neutral-200 bg-white p-1">
+      <div className="flex rounded-2xl border border-border bg-surface p-1">
         <button
           onClick={() => setView("input")}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
-            view === "input" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}>
-          📝 입력
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
+            view === "input" ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"}`}>
+          <PencilLine size={16} strokeWidth={1.8} /> 입력
         </button>
         <button
           onClick={() => setView("stats")}
-          className={`flex-1 rounded-lg px-3 py-2 text-sm font-medium transition ${
-            view === "stats" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"}`}>
-          📊 통계
+          className={`flex flex-1 items-center justify-center gap-1.5 rounded-xl px-3 py-2 text-sm font-medium transition ${
+            view === "stats" ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"}`}>
+          <PieChart size={16} strokeWidth={1.8} /> 통계
         </button>
       </div>
 

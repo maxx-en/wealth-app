@@ -1,9 +1,45 @@
 "use client";
-import { ReactNode } from "react";
+import { ReactNode, useEffect, useState } from "react";
+
+/**
+ * 차트 색상 훅 — recharts는 색을 SVG '속성'으로 넣어서 CSS 변수(var())가 안 먹는다.
+ * 그래서 현재 라이트/다크에 맞는 실제 색값을 computed style에서 읽어와 hex로 넘긴다.
+ * 시스템 모드가 바뀌면 자동으로 다시 읽는다.
+ */
+const CHART_VARS = {
+  line: "--chart-line", line2: "--chart-line-2", grid: "--chart-grid",
+  axis: "--chart-axis", surface: "--surface", border: "--border", text: "--text",
+  accent: "--accent", violet: "--violet", up: "--up", down: "--down",
+} as const;
+type ChartTheme = Record<keyof typeof CHART_VARS, string>;
+const CHART_FALLBACK: ChartTheme = {
+  line: "#6b8f1d", line2: "#7c3aed", grid: "#e5e4e1", axis: "#9ca3af",
+  surface: "#ffffff", border: "#e5e4e1", text: "#18181b",
+  accent: "#c6f24e", violet: "#7c3aed", up: "#16a34a", down: "#dc2626",
+};
+
+export function useChartTheme(): ChartTheme {
+  const [theme, setTheme] = useState<ChartTheme>(CHART_FALLBACK);
+  useEffect(() => {
+    const read = () => {
+      const cs = getComputedStyle(document.documentElement);
+      const next = {} as ChartTheme;
+      (Object.keys(CHART_VARS) as (keyof typeof CHART_VARS)[]).forEach((k) => {
+        next[k] = cs.getPropertyValue(CHART_VARS[k]).trim() || CHART_FALLBACK[k];
+      });
+      setTheme(next);
+    };
+    read();
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    mq.addEventListener("change", read);
+    return () => mq.removeEventListener("change", read);
+  }, []);
+  return theme;
+}
 
 export function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <div className={`rounded-2xl border border-neutral-200 bg-white p-5 shadow-sm ${className}`}>
+    <div className={`rounded-3xl border border-border bg-surface p-5 ${className}`}>
       {children}
     </div>
   );
@@ -13,16 +49,16 @@ export function StatCard({
   label, value, sub, accent = "neutral",
 }: {
   label: string; value: ReactNode; sub?: ReactNode;
-  accent?: "neutral" | "up" | "down" | "blue";
+  accent?: "neutral" | "up" | "down" | "accent";
 }) {
   const subColor =
-    accent === "up" ? "text-emerald-600" :
-    accent === "down" ? "text-rose-600" :
-    accent === "blue" ? "text-blue-600" : "text-neutral-500";
+    accent === "up" ? "text-up" :
+    accent === "down" ? "text-down" :
+    accent === "accent" ? "text-accent-strong" : "text-muted";
   return (
     <Card>
-      <div className="text-sm text-neutral-500">{label}</div>
-      <div className="mt-1 text-2xl font-bold tracking-tight text-neutral-900">{value}</div>
+      <div className="text-sm text-muted">{label}</div>
+      <div className="mt-1 text-2xl font-bold tracking-tight text-text">{value}</div>
       {sub != null && <div className={`mt-1 text-sm font-medium ${subColor}`}>{sub}</div>}
     </Card>
   );
@@ -36,17 +72,33 @@ export function Button({
   className?: string; disabled?: boolean;
 }) {
   const styles = {
-    primary: "bg-neutral-900 text-white hover:bg-neutral-700",
-    ghost: "bg-neutral-100 text-neutral-700 hover:bg-neutral-200",
-    danger: "bg-rose-50 text-rose-600 hover:bg-rose-100",
+    primary: "bg-accent text-[var(--accent-text)] hover:brightness-95",
+    ghost: "bg-surface-2 text-text hover:bg-border",
+    danger: "bg-[color-mix(in_srgb,var(--down)_18%,transparent)] text-down hover:bg-[color-mix(in_srgb,var(--down)_28%,transparent)]",
   }[variant];
   return (
     <button type={type} onClick={onClick} disabled={disabled}
-      className={`rounded-lg px-3 py-2 text-sm font-medium transition disabled:opacity-40 ${styles} ${className}`}>
+      className={`inline-flex items-center justify-center gap-1.5 rounded-full px-4 py-2.5 text-sm font-semibold transition disabled:opacity-40 ${styles} ${className}`}>
       {children}
     </button>
   );
 }
+
+export function Field({
+  label, children, className = "",
+}: {
+  label: string; children: ReactNode; className?: string;
+}) {
+  return (
+    <div className={className}>
+      <label className="mb-1.5 block text-xs font-medium text-muted">{label}</label>
+      {children}
+    </div>
+  );
+}
+
+const inputClass =
+  "w-full rounded-xl border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-muted outline-none transition focus:border-accent";
 
 export function Input({
   value, onChange, placeholder, type = "text", className = "",
@@ -58,7 +110,7 @@ export function Input({
     <input
       type={type} value={value} placeholder={placeholder}
       onChange={(e) => onChange(e.target.value)}
-      className={`w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900 ${className}`}
+      className={`${inputClass} ${className}`}
     />
   );
 }
@@ -100,7 +152,7 @@ export function MoneyInput({
         }
         onChange(v);
       }}
-      className={`w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900 ${className}`}
+      className={`${inputClass} ${className}`}
     />
   );
 }
@@ -113,8 +165,8 @@ export function Select({
 }) {
   return (
     <select value={value} onChange={(e) => onChange(e.target.value)}
-      className={`w-full rounded-lg border border-neutral-300 px-3 py-2 text-sm outline-none focus:border-neutral-900 ${className}`}>
-      {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      className={`${inputClass} ${className}`}>
+      {options.map((o) => <option key={o.value} value={o.value} className="bg-surface-2 text-text">{o.label}</option>)}
     </select>
   );
 }
