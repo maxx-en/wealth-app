@@ -55,13 +55,16 @@ export const GET = withHousehold(async (hid) => {
   const propertyValue = properties.reduce((s, p) => s + p.market_value, 0);
   const propertyDebt = properties.reduce((s, p) => s + p.loan_balance, 0);
 
-  // 총자산 = 보유한 것 전부 (현금+저축+증권+주식+부동산 시세)
-  const totalAssets = cash + savings + brokerageCash + stockValue + propertyValue;
-  // 총부채 = 갚을 것 전부 (부동산 대출 + 계좌 부채)
+  // ── 자산 계산 (순자산을 기준으로, 총자산은 파생) ──
+  //  순자산 = 실제 내가 보유한 몫
+  //    = 현금성 자산 + 부동산 에쿼티(시세 − 대출)
+  //    ※ 부동산 대출은 그 부동산의 에쿼티에서만 차감 (자산에 묶인 빚)
+  //    ※ 마이너스통장·신용대출은 순자산에서 빼지 않음 (빌린 돈 = 개인 역량으로 보고 총자산에 포함)
+  const netWorth = cash + savings + brokerageCash + stockValue + (propertyValue - propertyDebt);
+  //  부채 = 갚을 것 전부 (부동산 대출 + 계좌 부채)
   const totalDebt = propertyDebt + accountDebt;
-  // 순자산 = 총자산 − 총부채
-  //   예: 부동산 시세 12억 → 총자산에 +12억, 대출 4억 → 부채에 +4억 → 순자산 +8억
-  const netWorth = totalAssets - totalDebt;
+  //  총자산 = 순자산 + 부채 (빌린 돈까지 더한 '굴리는 자금 전체')
+  const totalAssets = netWorth + totalDebt;
 
   return NextResponse.json({
     usdKrw,
