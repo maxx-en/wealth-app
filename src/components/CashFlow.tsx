@@ -493,7 +493,8 @@ function InlineName({ value, onSave }: { value: string; onSave: (name: string) =
       onBlur={() => onSave(v)}
       onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
       aria-label="계좌 이름"
-      className="w-full truncate rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm outline-none transition hover:border-border focus:border-accent focus:bg-surface-2"
+      // 좌측 패딩(8px)+테두리(1px)만큼 음수 마진으로 당겨, 아래 서브텍스트와 글자 시작점을 맞춘다
+      className="-ml-[9px] w-full truncate rounded-lg border border-transparent bg-transparent px-2 py-0.5 text-sm outline-none transition hover:border-border focus:border-accent focus:bg-surface-2"
     />
   );
 }

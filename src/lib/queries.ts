@@ -101,11 +101,15 @@ export async function setCachedQuotes(hid: number, prices: Record<string, number
 // 수입은 +, 지출/저축은 − 로 누적. "기준 시각 이후"는 거래의 실제 입력 시점(created_at) 기준.
 export async function getAccounts(hid: number): Promise<Account[]> {
   await ready();
+  // 표시 잔액 = 기준 잔액 + (기준 시각 이후 그 계좌 거래 누적)
+  //  수입(income)·저축(saving) = +  (그 계좌로 돈이 들어옴)
+  //    ※ 저축은 "이 계좌(적금 등)에 돈을 넣는" 행위 → 선택 계좌 잔액 증가가 맞다
+  //  지출(expense)              = −  (그 계좌에서 돈이 나감)
   const rows = await sql<(Account & { base_balance: number })[]>`
     SELECT a.id, a.household_id, a.name, a.type, a.sort_order,
       a.balance AS base_balance,
       a.balance + COALESCE((
-        SELECT SUM(CASE WHEN t.kind='income' THEN t.amount ELSE -t.amount END)
+        SELECT SUM(CASE WHEN t.kind='expense' THEN -t.amount ELSE t.amount END)
         FROM transactions t
         WHERE t.account_id = a.id AND t.created_at > a.balance_updated_at
       ), 0) AS balance
@@ -274,6 +278,12 @@ export async function addGoal(hid: number, g: Omit<Goal, "id" | "household_id">)
   await sql`INSERT INTO goals (household_id,name,target_amount,target_date,expected_return)
     VALUES (${hid},${g.name},${g.target_amount},${g.target_date},${g.expected_return})`;
 }
+export async function updateGoal(hid: number, id: number, g: Omit<Goal, "id" | "household_id">) {
+  await ready();
+  await sql`UPDATE goals SET name=${g.name},target_amount=${g.target_amount},
+    target_date=${g.target_date},expected_return=${g.expected_return}
+    WHERE id=${id} AND household_id=${hid}`;
+}
 export async function deleteGoal(hid: number, id: number) {
   await ready();
   await sql`DELETE FROM goals WHERE id=${id} AND household_id=${hid}`;
@@ -286,6 +296,18 @@ export async function savedTowardGoal(hid: number, goalId: number): Promise<numb
     SELECT COALESCE(SUM(amount),0) AS total FROM transactions
     WHERE household_id=${hid} AND goal_id=${goalId} AND kind='saving'`;
   return Number(rows[0]?.total) || 0;
+}
+
+/** 모든 목표의 연결 저축 누적을 한 번에 { goalId: 합계 }로 반환. 목표탭 일괄 표시용. */
+export async function savedByGoal(hid: number): Promise<Record<number, number>> {
+  await ready();
+  const rows = await sql<{ goal_id: number; total: number }[]>`
+    SELECT goal_id, COALESCE(SUM(amount),0) AS total FROM transactions
+    WHERE household_id=${hid} AND kind='saving' AND goal_id IS NOT NULL
+    GROUP BY goal_id`;
+  const map: Record<number, number> = {};
+  for (const r of rows) map[Number(r.goal_id)] = Number(r.total) || 0;
+  return map;
 }
 
 /** 대시보드에 표시할 대표 목표 id. 없으면 null. (household_settings 재사용) */

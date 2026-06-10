@@ -155,7 +155,7 @@ export default function Dashboard() {
       </div>
 
       {/* 대표 목표 진행률 (목표 탭에서 별표로 선택한 목표) */}
-      {featured.goal && <GoalProgressCard goal={featured.goal} saved={featured.saved} netWorth={ov.netWorth} />}
+      {featured.goal && <GoalProgressCard goal={featured.goal} saved={featured.saved} />}
 
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={snapshot}><Camera size={15} strokeWidth={1.8} /> 지금 값으로 갱신</Button>
@@ -268,13 +268,13 @@ export default function Dashboard() {
 
 // 대표 목표 진행률 카드.
 // 진행률 = 이 목표에 연결한 저축 누적액(saved) 기준. 연결 저축이 없으면(0) 순자산으로 폴백.
-function GoalProgressCard({ goal, saved, netWorth }: { goal: Goal; saved: number; netWorth: number }) {
+function GoalProgressCard({ goal, saved }: { goal: Goal; saved: number }) {
   const now = new Date();
-  const target = new Date(goal.target_date);
+  const target = new Date(goal.target_date + "T23:59:59"); // 목표일은 그날 끝까지 유효
   const months = Math.max(0, monthsBetween(now, target));
-  // 연결 저축이 있으면 그걸로, 없으면 순자산을 현재값으로 본다.
-  const usingSaved = saved > 0;
-  const current = usingSaved ? saved : netWorth;
+  const passed = target.getTime() < now.getTime();
+  // 진행률 = 이 목표에 연결한 저축 누적
+  const current = saved;
   const progress = Math.min(100, goal.target_amount > 0 ? (current / goal.target_amount) * 100 : 0);
   const remaining = Math.max(0, goal.target_amount - current);
   const need = requiredMonthly(goal.target_amount, current, goal.expected_return, months);
@@ -303,14 +303,14 @@ function GoalProgressCard({ goal, saved, netWorth }: { goal: Goal; saved: number
           <div className="font-semibold tabular-nums">{formatKRWShort(remaining)}</div>
         </div>
         <div className="rounded-xl bg-surface-2 p-2.5">
-          <div className="text-[11px] text-muted">{reached ? "달성!" : months <= 0 ? "목표일 지남" : "매월 필요"}</div>
+          <div className="text-[11px] text-muted">{reached ? "달성!" : passed ? "목표일 지남" : "매월 필요"}</div>
           <div className="font-semibold tabular-nums">
-            {reached ? "🎉" : months <= 0 ? "날짜 조정" : `${formatKRWShort(need)}`}
+            {reached ? "🎉" : passed ? "날짜 조정" : `${formatKRWShort(need)}`}
           </div>
         </div>
       </div>
       <p className="mt-2 text-[11px] text-muted">
-        {usingSaved ? "이 목표에 연결한 저축 누적 기준" : "연결된 저축이 없어 순자산 기준으로 표시 (현금흐름에서 저축에 목표를 연결해 보세요)"}
+        {current > 0 ? "이 목표에 연결한 저축 누적 기준" : "현금흐름에서 저축을 입력할 때 이 목표를 연결하면 진행률이 올라가요"}
       </p>
     </Card>
   );

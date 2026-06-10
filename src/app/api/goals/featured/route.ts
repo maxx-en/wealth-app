@@ -11,7 +11,7 @@ export const GET = withHousehold(async (hid) => {
   const id = await getFeaturedGoalId(hid);
   if (id == null) return NextResponse.json({ goal: null, saved: 0 });
   const goals = await getGoals(hid);
-  const goal = goals.find((g) => g.id === id) ?? null;
+  const goal = goals.find((g) => Number(g.id) === Number(id)) ?? null;
   if (!goal) return NextResponse.json({ goal: null, saved: 0 }); // 삭제된 목표
   const saved = await savedTowardGoal(hid, id);
   return NextResponse.json({ goal, saved });
