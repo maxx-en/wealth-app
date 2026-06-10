@@ -34,7 +34,17 @@ type Quote = {
 const MARKET_OPTS = [
   { value: "US", label: "미국" },
   { value: "KR", label: "국내" },
+  { value: "CRYPTO", label: "코인" },
 ];
+
+// 표시용 라벨: 코인은 "KRW-BTC → BTC", 시장은 "CRYPTO → 코인"으로 보기 좋게.
+const MARKET_LABEL: Record<string, string> = { US: "미국", KR: "국내", CRYPTO: "코인" };
+function displaySymbol(symbol: string, market: string) {
+  return market === "CRYPTO" ? symbol.replace(/^KRW-/, "") : symbol;
+}
+function displayMarket(market: string) {
+  return MARKET_LABEL[market] ?? market;
+}
 
 export default function Investments() {
   const [holdings, setHoldings] = useState<Holding[]>([]);
@@ -176,58 +186,31 @@ function PortfolioPanel({
           아래에서 보유 종목을 추가하면 실시간 시세로 평가돼요.
         </p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-muted">
-                <th className="py-2">종목</th>
-                <th className="text-right">수량</th>
-                <th className="text-right">평단</th>
-                <th className="text-right">현재가</th>
-                <th className="text-right">평가액</th>
-                <th className="text-right">손익</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.h.id} className="border-b border-border">
-                  <td className="py-2">
-                    <div className="font-medium">
+        <>
+          {/* 모바일: 종목별 카드 (좁은 화면에서 글자 엉킴 방지) */}
+          <div className="space-y-2.5 sm:hidden">
+            {rows.map((r) => (
+              <div key={r.h.id} className="rounded-2xl border border-border bg-surface-2 p-3.5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="truncate font-medium">
                       {r.h.name || r.q?.name || r.h.symbol}
                     </div>
                     <div className="text-[11px] text-muted">
-                      {r.h.symbol} · {r.h.market}
+                      {displaySymbol(r.h.symbol, r.h.market)} · {displayMarket(r.h.market)}
                       {r.q && (
-                        <span
-                          className={
-                            r.q.changePct >= 0
-                              ? "text-up"
-                              : "text-down"
-                          }
-                        >
-                          {" "}
-                          · {formatPct(r.q.changePct)}
+                        <span className={r.q.changePct >= 0 ? "text-up" : "text-down"}>
+                          {" "}· {formatPct(r.q.changePct)}
                         </span>
                       )}
                     </div>
-                  </td>
-                  <td className="text-right">{r.h.shares}</td>
-                  <td className="text-right">
-                    {formatMoney(r.h.avg_cost, r.h.currency)}
-                  </td>
-                  <td className="text-right">
-                    {formatMoney(r.price, r.h.currency)}
-                  </td>
-                  <td className="text-right">
-                    {formatMoney(r.value, r.h.currency)}
-                  </td>
-                  <td
-                    className={`text-right font-medium ${r.gain >= 0 ? "text-up" : "text-down"}`}
-                  >
-                    {formatPct(r.gainPct)}
-                  </td>
-                  <td className="text-right">
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <span
+                      className={`text-sm font-semibold tabular-nums ${r.gain >= 0 ? "text-up" : "text-down"}`}
+                    >
+                      {formatPct(r.gainPct)}
+                    </span>
                     <button
                       onClick={() => remove(r.h.id)}
                       aria-label="삭제"
@@ -235,12 +218,92 @@ function PortfolioPanel({
                     >
                       <X size={16} strokeWidth={1.8} />
                     </button>
-                  </td>
+                  </div>
+                </div>
+                <div className="mt-2.5 flex items-end justify-between gap-2">
+                  <div className="text-[11px] text-muted">
+                    수량 {r.h.shares} · 평단 {formatMoney(r.h.avg_cost, r.h.currency)}
+                    <br />
+                    현재가 {formatMoney(r.price, r.h.currency)}
+                  </div>
+                  <div className="text-right">
+                    <div className="text-[11px] text-muted">평가액</div>
+                    <div className="font-semibold tabular-nums">
+                      {formatMoney(r.value, r.h.currency)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* PC: 기존 표 유지 */}
+          <div className="hidden overflow-x-auto sm:block">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-border text-left text-xs text-muted">
+                  <th className="py-2">종목</th>
+                  <th className="text-right">수량</th>
+                  <th className="text-right">평단</th>
+                  <th className="text-right">현재가</th>
+                  <th className="text-right">평가액</th>
+                  <th className="text-right">손익</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.h.id} className="border-b border-border">
+                    <td className="py-2">
+                      <div className="font-medium">
+                        {r.h.name || r.q?.name || r.h.symbol}
+                      </div>
+                      <div className="text-[11px] text-muted">
+                        {displaySymbol(r.h.symbol, r.h.market)} · {displayMarket(r.h.market)}
+                        {r.q && (
+                          <span
+                            className={
+                              r.q.changePct >= 0
+                                ? "text-up"
+                                : "text-down"
+                            }
+                          >
+                            {" "}
+                            · {formatPct(r.q.changePct)}
+                          </span>
+                        )}
+                      </div>
+                    </td>
+                    <td className="text-right">{r.h.shares}</td>
+                    <td className="text-right">
+                      {formatMoney(r.h.avg_cost, r.h.currency)}
+                    </td>
+                    <td className="text-right">
+                      {formatMoney(r.price, r.h.currency)}
+                    </td>
+                    <td className="text-right">
+                      {formatMoney(r.value, r.h.currency)}
+                    </td>
+                    <td
+                      className={`text-right font-medium ${r.gain >= 0 ? "text-up" : "text-down"}`}
+                    >
+                      {formatPct(r.gainPct)}
+                    </td>
+                    <td className="text-right">
+                      <button
+                        onClick={() => remove(r.h.id)}
+                        aria-label="삭제"
+                        className="text-muted transition hover:text-down"
+                      >
+                        <X size={16} strokeWidth={1.8} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
     </Card>
   );
@@ -255,17 +318,27 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
   const [avgCost, setAvgCost] = useState("");
 
   const toast = useToast();
+  const isCrypto = market === "CRYPTO";
   async function add() {
-    if (!symbol.trim()) { toast.error("티커를 입력해 주세요 (예: AAPL)"); return; }
+    if (!symbol.trim()) {
+      toast.error(isCrypto ? "코인 티커를 입력해 주세요 (예: BTC)" : "티커를 입력해 주세요 (예: AAPL)");
+      return;
+    }
     if (!shares) { toast.error("보유 수량을 입력해 주세요"); return; }
     try {
+      // 코인은 업비트 원화 시세 → 심볼을 "KRW-BTC" 형식으로, 통화는 KRW로 저장.
+      // (사용자가 이미 "KRW-"를 붙여 입력했어도 중복 방지)
+      const finalSymbol = isCrypto
+        ? `KRW-${symbol.replace(/^KRW-/, "")}`
+        : symbol;
+      const currency = isCrypto ? "KRW" : market === "KR" ? "KRW" : "USD";
       await post("/api/holdings", {
-        symbol,
+        symbol: finalSymbol,
         name,
         market,
         shares,
         avg_cost: avgCost,
-        currency: market === "KR" ? "KRW" : "USD",
+        currency,
       });
       setSymbol("");
       setName("");
@@ -282,15 +355,24 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
     <Card>
       <h2 className="mb-1 font-semibold">종목 추가</h2>
       <p className="mb-3 text-xs text-muted">
-        지금 보유한 종목과 수량을 입력하면 실시간 시세로 평가돼요. 미국: <code>AAPL</code>, <code>VOO</code> / 국내:{" "}
-        <code>005930.KS</code>(삼성전자), <code>069500.KS</code>(KODEX200).
+        {isCrypto ? (
+          <>
+            보유한 코인 티커와 수량을 입력하면 업비트 원화 시세로 평가돼요. 예:{" "}
+            <code>BTC</code>(비트코인), <code>ETH</code>(이더리움), <code>XRP</code>(리플).
+          </>
+        ) : (
+          <>
+            지금 보유한 종목과 수량을 입력하면 실시간 시세로 평가돼요. 미국: <code>AAPL</code>, <code>VOO</code> / 국내:{" "}
+            <code>005930.KS</code>(삼성전자), <code>069500.KS</code>(KODEX200).
+          </>
+        )}
       </p>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         <Select value={market} onChange={setMarket} options={MARKET_OPTS} />
         <Input
           value={symbol}
           onChange={(v) => setSymbol(v.toUpperCase())}
-          placeholder="티커 (AAPL)"
+          placeholder={isCrypto ? "코인 티커 (BTC)" : "티커 (AAPL)"}
         />
         <Input value={name} onChange={setName} placeholder="이름(선택)" />
         <Input
@@ -302,7 +384,7 @@ function HoldingForm({ onSaved }: { onSaved: () => void }) {
         <MoneyInput
           value={avgCost}
           onChange={setAvgCost}
-          placeholder={`평단가 (${market === "KR" ? "원" : "$"})`}
+          placeholder={`평단가 (${market === "US" ? "$" : "원"})`}
           className="col-span-2 sm:col-span-1"
         />
       </div>

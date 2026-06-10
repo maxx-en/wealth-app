@@ -5,9 +5,39 @@ export function formatKRW(n: number): string {
   return Math.round(n).toLocaleString("ko-KR");
 }
 
-/** 통화 기호 포함 포맷 */
+/**
+ * 원화 만원 단위 축약 — 자산 구성처럼 "비중을 한눈에" 보는 곳에서 사용.
+ *   50,196,885 -> "5,019만원" / 112,445,157 -> "1억 1,244만원" / 7,296,881 -> "729만원"
+ * 만원 미만은 버려서 짧게 (정확한 금액이 필요한 곳에는 formatKRW를 쓴다).
+ */
+export function formatKRWShort(n: number): string {
+  const won = Math.round(n);
+  const sign = won < 0 ? "-" : "";
+  const abs = Math.abs(won);
+  if (abs < 10000) return sign + abs.toLocaleString("ko-KR") + "원";
+  const manTotal = Math.floor(abs / 10000); // 만원 단위(버림)
+  const eok = Math.floor(manTotal / 10000); // 억
+  const man = manTotal % 10000; // 나머지 만
+  if (eok > 0) {
+    return sign + eok.toLocaleString("ko-KR") + "억" +
+      (man > 0 ? " " + man.toLocaleString("ko-KR") + "만" : "") + "원";
+  }
+  return sign + man.toLocaleString("ko-KR") + "만원";
+}
+
+/**
+ * 통화 기호 포함 포맷.
+ * 코인처럼 1원 미만 단위로 거래되는 소액 자산은 원화라도 소수점까지 표시한다.
+ *   ₩92,547,000 (BTC) / ₩0.024 (소액 코인) / $230.5 (미국 주식)
+ */
 export function formatMoney(n: number, currency = "KRW"): string {
   if (currency === "USD") return "$" + n.toLocaleString("en-US", { maximumFractionDigits: 2 });
+  const abs = Math.abs(n);
+  // 1,000원 미만이면서 정수가 아니면 소액 자산으로 보고 유효 소수까지 표시
+  if (abs > 0 && abs < 1000 && !Number.isInteger(n)) {
+    const digits = abs >= 1 ? 2 : abs >= 0.01 ? 4 : 8;
+    return "₩" + n.toLocaleString("ko-KR", { maximumFractionDigits: digits });
+  }
   return "₩" + Math.round(n).toLocaleString("ko-KR");
 }
 

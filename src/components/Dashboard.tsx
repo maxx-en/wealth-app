@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Camera, RefreshCw } from "lucide-react";
 import { Card, Button, StatCard, statSize, useChartTheme, Skeleton } from "./ui";
 import { api, post, currentYM } from "@/lib/api";
-import { formatKRW, formatPct, growthRate } from "@/lib/finance";
+import { formatKRW, formatKRWShort, formatPct, growthRate } from "@/lib/finance";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -11,14 +11,15 @@ import {
 
 type Overview = {
   usdKrw: number;
-  breakdown: { cash: number; savings: number; stock: number; property: number };
+  breakdown: { cash: number; savings: number; stock: number; crypto: number; property: number };
   totalAssets: number; totalDebt: number; netWorth: number;
   stockValue: number; stockGainPct: number;
+  cryptoValue: number; cryptoGainPct: number;
 };
 type Snapshot = { ym: string; total_assets: number; total_debt: number; net_worth: number };
 
-const PIE_COLORS = ["#a3d635", "#9d7bff", "#f5b84e", "#5ec8e8"];
-const PIE_LABELS = ["현금", "저축", "주식", "부동산"];
+const PIE_COLORS = ["#a3d635", "#9d7bff", "#f5b84e", "#f57ea0", "#5ec8e8"];
+const PIE_LABELS = ["현금", "저축", "주식", "코인", "부동산"];
 
 export default function Dashboard() {
   const [ov, setOv] = useState<Overview | null>(null);
@@ -103,6 +104,7 @@ export default function Dashboard() {
     { name: "현금", value: ov.breakdown.cash },
     { name: "저축", value: ov.breakdown.savings },
     { name: "주식", value: ov.breakdown.stock },
+    { name: "코인", value: ov.breakdown.crypto },
     { name: "부동산", value: ov.breakdown.property },
   ].filter((d) => d.value > 0);
 
@@ -135,14 +137,16 @@ export default function Dashboard() {
     <div className="space-y-6">
       {/* 핵심 지표 */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatCard label="순자산" value={`${formatKRW(ov.netWorth)}원`} valueSize={statRowSize}
-          sub={momGrowth != null ? `전월 대비 ${formatPct(momGrowth)}` : "총자산 − 부채"}
+        <StatCard label="순자산"
+          note={momGrowth != null ? `전월 ${formatPct(momGrowth)}` : "총자산 − 부채"}
+          value={`${formatKRW(ov.netWorth)}원`} valueSize={statRowSize}
           accent={momGrowth != null && momGrowth >= 0 ? "up" : momGrowth != null ? "down" : "neutral"} />
         <StatCard label="총자산" value={`${formatKRW(ov.totalAssets)}원`} valueSize={statRowSize} />
         <StatCard label="부채" value={`${formatKRW(ov.totalDebt)}원`} valueSize={statRowSize} accent="down" />
-        <StatCard label="올해 누적 성장" valueSize={statRowSize}
+        <StatCard label="올해 성장"
+          note={yearStart ? `${yearStart.ym.slice(2, 4)}.${yearStart.ym.slice(5, 7)} 기준` : undefined}
+          valueSize={statRowSize}
           value={ytdGrowth != null ? formatPct(ytdGrowth) : "—"}
-          sub={`주식 수익률 ${formatPct(ov.stockGainPct)}`}
           accent={ytdGrowth != null && ytdGrowth >= 0 ? "up" : "down"} />
       </div>
 
@@ -173,18 +177,22 @@ export default function Dashboard() {
                   </PieChart>
                 </ResponsiveContainer>
               </div>
-              <div className="flex-1 space-y-2">
+              <div className="min-w-0 flex-1 space-y-2.5">
                 {pieData.map((d) => (
-                  <div key={d.name} className="flex items-center justify-between text-sm">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2.5 w-2.5 rounded-full" style={{ background: PIE_COLORS[PIE_LABELS.indexOf(d.name)] }} />
-                      {d.name}
-                    </span>
-                    <span className="font-medium">{formatKRW(d.value)}원
-                      <span className="ml-1 text-xs text-muted">
+                  <div key={d.name} className="text-sm">
+                    {/* 윗줄: 색상·이름 + 비중 / 아랫줄: 금액 — 금액이 길어도 이름이 안 쪼개지게 분리 */}
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex min-w-0 items-center gap-2 break-keep">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PIE_COLORS[PIE_LABELS.indexOf(d.name)] }} />
+                        {d.name}
+                      </span>
+                      <span className="shrink-0 text-xs text-muted">
                         {((d.value / ov.totalAssets) * 100).toFixed(0)}%
                       </span>
-                    </span>
+                    </div>
+                    <div className="mt-0.5 pl-[1.125rem] font-medium tabular-nums">
+                      {formatKRWShort(d.value)}
+                    </div>
                   </div>
                 ))}
               </div>

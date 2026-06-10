@@ -86,13 +86,75 @@ export async function fetchQuote(symbol: string): Promise<Quote | null> {
   }
 }
 
-/** 여러 종목 동시 조회 */
+// ── 업비트(국내 거래소) 코인 시세 — 원화 기준, 인증 불필요 ──
+// 심볼 형식: "KRW-BTC", "KRW-ETH" 등. 업비트 실제 거래가(원)를 그대로 사용하므로
+// 달러→원 환율 변환 없이 정확하다.
+const UPBIT_TICKER = "https://api.upbit.com/v1/ticker?markets=";
+const UPBIT_MARKETS = "https://api.upbit.com/v1/market/all";
+
+// 코인 한글명 캐시 (BTC→비트코인 등). 프로세스 단위 재사용.
+let coinNames: Record<string, string> | null = null;
+async function getCoinNames(): Promise<Record<string, string>> {
+  if (coinNames) return coinNames;
+  try {
+    const res = await fetchWithTimeout(UPBIT_MARKETS, { headers: { "User-Agent": UA } }, 3000);
+    if (!res.ok) return {};
+    const list = (await res.json()) as { market: string; korean_name: string }[];
+    coinNames = {};
+    for (const m of list) coinNames[m.market] = m.korean_name;
+    return coinNames;
+  } catch {
+    return {};
+  }
+}
+
+/** 업비트 코인 시세 (원화). 심볼들은 모두 "KRW-XXX" 형식이어야 한다. */
+async function fetchUpbitQuotes(symbols: string[]): Promise<Record<string, Quote>> {
+  const map: Record<string, Quote> = {};
+  if (symbols.length === 0) return map;
+  try {
+    const [res, names] = await Promise.all([
+      fetchWithTimeout(UPBIT_TICKER + symbols.map(encodeURIComponent).join(","), {
+        headers: { "User-Agent": UA },
+        next: { revalidate: 60 },
+      }),
+      getCoinNames(),
+    ]);
+    if (!res.ok) return map;
+    const arr = (await res.json()) as any[];
+    for (const t of arr) {
+      const sym = t.market as string;
+      const price = Number(t.trade_price);
+      const prev = Number(t.prev_closing_price) || price;
+      map[sym] = {
+        symbol: sym,
+        price,
+        currency: "KRW",
+        previousClose: prev,
+        changePct: prev ? ((price - prev) / prev) * 100 : 0,
+        name: names[sym] ?? sym.replace("KRW-", ""),
+      };
+    }
+  } catch {
+    /* 실패 시 빈 맵 — 호출부에서 평단가로 폴백 */
+  }
+  return map;
+}
+
+/** 여러 종목 동시 조회 — "KRW-"로 시작하면 업비트(코인), 그 외엔 야후(주식). */
 export async function fetchQuotes(symbols: string[]): Promise<Record<string, Quote>> {
   const unique = Array.from(new Set(symbols.filter(Boolean)));
-  const results = await Promise.all(unique.map((s) => fetchQuote(s)));
-  const map: Record<string, Quote> = {};
-  results.forEach((q, i) => {
-    if (q) map[unique[i]] = q;
+  const upbitSyms = unique.filter((s) => s.startsWith("KRW-"));
+  const yahooSyms = unique.filter((s) => !s.startsWith("KRW-"));
+
+  const [yahooResults, upbitMap] = await Promise.all([
+    Promise.all(yahooSyms.map((s) => fetchQuote(s))),
+    fetchUpbitQuotes(upbitSyms),
+  ]);
+
+  const map: Record<string, Quote> = { ...upbitMap };
+  yahooResults.forEach((q, i) => {
+    if (q) map[yahooSyms[i]] = q;
   });
   return map;
 }

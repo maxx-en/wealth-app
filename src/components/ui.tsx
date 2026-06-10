@@ -90,10 +90,15 @@ export function Card({ children, className = "" }: { children: ReactNode; classN
 }
 
 // 값 길이에 따른 글자 크기 클래스. 큰 금액이 카드 밖으로 넘치지 않게 줄인다.
+// 모바일은 카드 2칸 그리드라 폭이 좁다 → 같은 길이라도 모바일을 한 단계 더 작게.
+// 억(12자)·십억(14자)·백억(16자+)까지 안 넘치도록 단계를 촘촘히 둔다.
 function sizeForLen(len: number) {
-  return len > 16 ? "text-base sm:text-lg" :
-    len > 12 ? "text-lg sm:text-xl" :
-    "text-xl sm:text-2xl";
+  if (len > 17) return "text-[11px] sm:text-base";   // 천억대+ (예: 100,000,000,000원)
+  if (len > 15) return "text-xs sm:text-base";        // 백억대 (10,000,000,000원)
+  if (len > 13) return "text-sm sm:text-lg";          // 십억대 (1,000,000,000원)
+  if (len > 11) return "text-base sm:text-xl";        // 억대 (100,000,000원)
+  if (len > 9) return "text-lg sm:text-2xl";          // 천만대
+  return "text-xl sm:text-2xl";
 }
 
 /**
@@ -109,30 +114,40 @@ export function statSize(...values: ReactNode[]) {
   return sizeForLen(maxLen);
 }
 
+type Accent = "neutral" | "up" | "down" | "accent";
+const accentText = (a: Accent) =>
+  a === "up" ? "text-up" :
+  a === "down" ? "text-down" :
+  a === "accent" ? "text-accent-strong" : "text-muted";
+
 export function StatCard({
-  label, value, sub, labelRight, accent = "neutral", valueSize,
+  label, value, sub, note, labelRight, accent = "neutral", subAccent, valueSize,
 }: {
   label: string; value: ReactNode; sub?: ReactNode;
+  note?: ReactNode; // 라벨 옆에 붙는 설명 (예: "총자산−부채") — 값 아래 줄을 안 늘리고 라벨 옆에 표시
   labelRight?: ReactNode; // 라벨 줄 오른쪽에 붙는 보조 정보 (예: 예상 수익)
-  accent?: "neutral" | "up" | "down" | "accent";
+  accent?: Accent;
+  subAccent?: Accent; // 서브텍스트가 메인 값과 다른 지표일 때, 자기 부호대로 색을 줄 수 있게.
   valueSize?: string; // 그룹 통일 크기. 없으면 자체 값 길이로 계산.
 }) {
-  const subColor =
-    accent === "up" ? "text-up" :
-    accent === "down" ? "text-down" :
-    accent === "accent" ? "text-accent-strong" : "text-muted";
+  const labelRightColor = accentText(accent);
+  const subColor = accentText(subAccent ?? accent);
   const size = valueSize ?? sizeForLen(typeof value === "string" ? value.length : 0);
+  // Card의 고정 패딩(p-5) 대신 자체 패딩 — 모바일은 좁으니 좌우를 줄여 큰 금액(10억·100억)이 안 넘치게.
   return (
-    <Card>
+    <div className="rounded-3xl border border-border bg-surface px-3.5 py-4 sm:p-5">
       <div className="flex items-center justify-between gap-2">
-        <span className="text-sm text-muted">{label}</span>
+        <span className="min-w-0 truncate text-sm text-muted">
+          {label}
+          {note != null && <span className="ml-1 text-xs text-muted/80">({note})</span>}
+        </span>
         {labelRight != null && (
-          <span className={`shrink-0 text-sm font-semibold ${subColor}`}>{labelRight}</span>
+          <span className={`shrink-0 text-sm font-semibold ${labelRightColor}`}>{labelRight}</span>
         )}
       </div>
       <div className={`mt-1 break-keep font-bold tracking-tight text-text tabular-nums ${size}`}>{value}</div>
       {sub != null && <div className={`mt-1 break-keep text-sm font-medium ${subColor}`}>{sub}</div>}
-    </Card>
+    </div>
   );
 }
 
