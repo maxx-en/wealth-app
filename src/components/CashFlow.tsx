@@ -392,6 +392,22 @@ function InlineBalance({ value, onSave, isDebt = false }: { value: number; onSav
   );
 }
 
+// 계좌 이름 인라인 수정칸 — 클릭해 바로 고치고, 포커스 벗어나면 저장. (값 바뀔 때만)
+function InlineName({ value, onSave }: { value: string; onSave: (name: string) => void }) {
+  const [v, setV] = useState(value);
+  useEffect(() => { setV(value); }, [value]);
+  return (
+    <input
+      value={v}
+      onChange={(e) => setV(e.target.value)}
+      onBlur={() => onSave(v)}
+      onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
+      aria-label="계좌 이름"
+      className="w-full truncate rounded-lg border border-transparent bg-transparent px-1 py-0.5 text-sm outline-none transition hover:border-border focus:border-accent focus:bg-surface-2"
+    />
+  );
+}
+
 // ---------- 계좌 ----------
 function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; onChange: (a: Account[]) => void; loading: boolean }) {
   const [name, setName] = useState("");
@@ -424,6 +440,17 @@ function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; on
       toast.error("잔액 저장에 실패했어요");
     }
   }
+  // 이름만 변경 — 잔액은 '기준 잔액(base_balance)'을 그대로 넘겨 거래 누적 기준점이 리셋되지 않게 한다.
+  async function updateName(a: Account, name: string) {
+    const trimmed = name.trim();
+    if (!trimmed || trimmed === a.name) return;
+    try {
+      onChange((await put("/api/accounts", { id: a.id, name: trimmed, type: a.type, balance: a.base_balance ?? a.balance })) as Account[]);
+      toast.success("계좌 이름을 변경했어요");
+    } catch {
+      toast.error("이름 변경에 실패했어요");
+    }
+  }
 
   return (
     <Card>
@@ -444,7 +471,7 @@ function AccountPanel({ accounts, onChange, loading }: { accounts: Account[]; on
           return (
           <div key={a.id} className="flex items-center justify-between gap-2 rounded-lg px-2 py-1.5 hover:bg-surface-2">
             <div className="min-w-0">
-              <div className="truncate text-sm">{a.name}</div>
+              <InlineName value={a.name} onSave={(v) => updateName(a, v)} />
               <div className="text-[11px] text-muted">
                 {ACCT_TYPE_OPTS.find((o) => o.value === a.type)?.label}
                 {debt && <span className="ml-1 text-down">· 부채</span>}
