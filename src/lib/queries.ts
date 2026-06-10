@@ -1,4 +1,5 @@
 import { sql, ensureSchema } from "./db";
+import { DEFAULT_CATEGORIES, normalizeCategories, type CategorySet } from "./categories";
 
 // 모든 쿼리는 household_id(가구) 기준. 호출 전 스키마 보장.
 async function ready() { await ensureSchema(); }
@@ -53,6 +54,26 @@ export async function setCachedUsdKrw(hid: number, rate: number) {
   await sql`
     INSERT INTO household_settings (household_id, key, value, updated_at)
     VALUES (${hid}, 'usd_krw', ${String(rate)}, now())
+    ON CONFLICT (household_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`;
+}
+
+/** 가구별 카테고리 목록. 저장된 게 없으면 기본값 반환. */
+export async function getCategories(hid: number): Promise<CategorySet> {
+  await ready();
+  const rows = await sql<{ value: string }[]>`
+    SELECT value FROM household_settings WHERE household_id=${hid} AND key='categories' LIMIT 1`;
+  if (!rows[0]?.value) return DEFAULT_CATEGORIES;
+  try { return normalizeCategories(JSON.parse(rows[0].value)); }
+  catch { return DEFAULT_CATEGORIES; }
+}
+
+/** 카테고리 목록 저장(전체 덮어쓰기). */
+export async function setCategories(hid: number, cats: CategorySet) {
+  await ready();
+  const clean = normalizeCategories(cats);
+  await sql`
+    INSERT INTO household_settings (household_id, key, value, updated_at)
+    VALUES (${hid}, 'categories', ${JSON.stringify(clean)}, now())
     ON CONFLICT (household_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`;
 }
 

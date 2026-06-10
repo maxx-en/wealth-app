@@ -7,6 +7,7 @@ import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, formatKRWShort, savingsRate } from "@/lib/finance";
 import type { Account, Transaction, RecurringItem } from "@/lib/queries";
 import { parseTxnText, matchAccount } from "@/lib/txn-parser";
+import { DEFAULT_CATEGORIES, type CategorySet } from "@/lib/categories";
 
 const KIND_LABEL: Record<string, string> = { income: "수입", expense: "지출", saving: "저축" };
 const KIND_OPTS = [
@@ -26,18 +27,12 @@ const ACCT_TYPE_OPTS = [
 // (마이너스통장이라도 잔액이 +면 자산, −면 부채)
 const isDebtBalance = (balance: number) => balance < 0;
 
-// 종류별 기본 카테고리 (직접 입력도 가능)
-const CATEGORIES: Record<string, string[]> = {
-  income: ["월급", "상여/보너스", "사업소득", "이자/배당", "기타수입"],
-  expense: ["주거/월세", "관리/공과금", "통신", "식비", "교통/차량", "쇼핑", "문화/여가", "의료/건강", "보험", "교육", "경조사", "기타지출"],
-  saving: ["비상금", "예적금", "투자이체", "연금", "기타저축"],
-};
-
 export default function CashFlow() {
   const [ym, setYm] = useState(currentYM());
   const [accounts, setAccounts] = useState<Account[]>([]);
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [recurring, setRecurring] = useState<RecurringItem[]>([]);
+  const [categories, setCategories] = useState<CategorySet>(DEFAULT_CATEGORIES);
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
@@ -46,12 +41,13 @@ export default function CashFlow() {
       // 이 월에 등록된 정기항목을 먼저 자동 반영(중복은 서버에서 방지) 후 거래를 불러온다.
       // → 사용자가 별도 버튼을 누를 필요 없이, 매달 페이지를 열기만 하면 고정비가 자동 기록됨.
       await post("/api/recurring/materialize", { ym });
-      const [a, t, r] = await Promise.all([
+      const [a, t, r, c] = await Promise.all([
         api<Account[]>("/api/accounts"),
         api<Transaction[]>(`/api/transactions?ym=${ym}`),
         api<RecurringItem[]>("/api/recurring"),
+        api<CategorySet>("/api/categories"),
       ]);
-      setAccounts(a); setTxns(t); setRecurring(r);
+      setAccounts(a); setTxns(t); setRecurring(r); setCategories(c);
     } finally {
       setLoading(false);
     }
@@ -96,35 +92,111 @@ export default function CashFlow() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <TxnPanel ym={ym} accounts={accounts} txns={txns} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} loading={loading} />
+        <TxnPanel ym={ym} accounts={accounts} txns={txns} categories={categories} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} loading={loading} />
         <div className="space-y-6">
-          <RecurringPanel accounts={accounts} recurring={recurring} acctName={acctName} onChange={setRecurring} onApplied={loadAll} loading={loading} />
+          <RecurringPanel accounts={accounts} recurring={recurring} categories={categories} acctName={acctName} onChange={setRecurring} onApplied={loadAll} loading={loading} />
           <AccountPanel accounts={accounts} onChange={setAccounts} loading={loading} />
+          <CategoryPanel categories={categories} onChange={setCategories} loading={loading} />
         </div>
       </div>
     </div>
   );
 }
 
+// ---------- 카테고리 관리 ----------
+// 수입/지출/저축별 카테고리 칩을 추가/삭제. 저장하면 거래입력·정기항목·통계에 공통 반영.
+// (기존 거래의 분류 문자열은 보존 — 삭제해도 과거 데이터는 안 깨지고 드롭다운에만 안 보임)
+function CategoryPanel({ categories, onChange, loading }: {
+  categories: CategorySet; onChange: (c: CategorySet) => void; loading: boolean;
+}) {
+  const [tab, setTab] = useState<keyof CategorySet>("expense");
+  const [input, setInput] = useState("");
+  const [saving, setSaving] = useState(false);
+  const toast = useToast();
+
+  async function save(next: CategorySet) {
+    setSaving(true);
+    try {
+      const saved = (await put("/api/categories", next)) as CategorySet;
+      onChange(saved);
+    } catch {
+      toast.error("카테고리 저장에 실패했어요");
+    } finally {
+      setSaving(false);
+    }
+  }
+  function addCat() {
+    const name = input.trim();
+    if (!name) return;
+    if (categories[tab].includes(name)) { toast.error("이미 있는 카테고리예요"); return; }
+    const next = { ...categories, [tab]: [...categories[tab], name] };
+    setInput("");
+    save(next);
+  }
+  function removeCat(name: string) {
+    const next = { ...categories, [tab]: categories[tab].filter((c) => c !== name) };
+    save(next);
+  }
+
+  return (
+    <Card>
+      <h2 className="mb-1 font-semibold">카테고리 관리</h2>
+      <p className="mb-3 text-xs text-muted">자주 쓰는 항목을 추가하거나 지우세요. 거래·정기항목·통계에 함께 적용돼요. (지운 카테고리의 과거 거래는 그대로 보존돼요)</p>
+
+      <div className="mb-3 flex rounded-full border border-border p-0.5 text-xs">
+        {(KIND_OPTS).map((k) => (
+          <button key={k.value} onClick={() => setTab(k.value as keyof CategorySet)}
+            className={`flex-1 rounded-full px-3 py-1 font-medium transition ${
+              tab === k.value ? "bg-accent text-[var(--accent-text)]" : "text-muted hover:text-text"}`}>
+            {k.label}
+          </button>
+        ))}
+      </div>
+
+      {loading ? <ListSkeleton rows={2} /> : (
+        <>
+          <div className="flex flex-wrap gap-1.5">
+            {categories[tab].length === 0 && <span className="py-2 text-sm text-muted">카테고리가 없어요. 아래에서 추가하세요.</span>}
+            {categories[tab].map((c) => (
+              <span key={c} className="inline-flex items-center gap-1 rounded-full bg-surface-2 py-1 pl-3 pr-1.5 text-sm">
+                {c}
+                <button onClick={() => removeCat(c)} disabled={saving} aria-label={`${c} 삭제`}
+                  className="text-muted transition hover:text-down disabled:opacity-40">
+                  <X size={14} strokeWidth={2} />
+                </button>
+              </span>
+            ))}
+          </div>
+          <div className="mt-3 flex gap-2">
+            <Input value={input} onChange={setInput} placeholder="새 카테고리 이름" />
+            <Button onClick={addCat} disabled={saving}>추가</Button>
+          </div>
+        </>
+      )}
+    </Card>
+  );
+}
+
 // ---------- 거래 입력/목록 ----------
-function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange, loading }: {
-  ym: string; accounts: Account[]; txns: Transaction[];
+function TxnPanel({ ym, accounts, txns, categories, acctName, onChange, onAccountsChange, loading }: {
+  ym: string; accounts: Account[]; txns: Transaction[]; categories: CategorySet;
   acctName: (id: number | null) => string; onChange: (t: Transaction[]) => void;
   onAccountsChange: () => void; // 거래 변경 시 계좌 표시 잔액 갱신용
   loading: boolean;
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState(CATEGORIES.expense[0]); // 초기값 = 지출 첫 카테고리
+  const [category, setCategory] = useState(categories.expense[0] ?? ""); // 초기값 = 지출 첫 카테고리
   const [memo, setMemo] = useState("");
   const [date, setDate] = useState(today());
   const [accountId, setAccountId] = useState<string>("");
   const [pasteOpen, setPasteOpen] = useState(false); // 붙여넣기 영역 펼침 여부
 
+  const catList = (k: string): string[] => categories[k as keyof CategorySet] ?? [];
   // 종류가 바뀌면 카테고리 기본값을 그 종류의 첫 항목으로
   function changeKind(k: string) {
     setKind(k);
-    setCategory(CATEGORIES[k]?.[0] ?? "");
+    setCategory(catList(k)[0] ?? "");
   }
 
   const toast = useToast();
@@ -226,7 +298,7 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange, lo
         <Select value={category} onChange={setCategory}
           options={[
             ...(category === "" ? [{ value: "", label: "카테고리 선택" }] : []),
-            ...(CATEGORIES[kind] ?? []).map((c) => ({ value: c, label: c })),
+            ...catList(kind).map((c) => ({ value: c, label: c })),
           ]} />
         <Select value={accountId} onChange={setAccountId}
           options={[{ value: "", label: "계좌 선택(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
@@ -265,22 +337,23 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange, lo
 }
 
 // ---------- 정기항목 ----------
-function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied, loading }: {
-  accounts: Account[]; recurring: RecurringItem[];
+function RecurringPanel({ accounts, recurring, categories, acctName, onChange, onApplied, loading }: {
+  accounts: Account[]; recurring: RecurringItem[]; categories: CategorySet;
   acctName: (id: number | null) => string; onChange: (r: RecurringItem[]) => void;
   onApplied: () => void; // 정기항목 변경 후 이번 달 거래에 즉시 반영시키기 위한 콜백
   loading: boolean;
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("주거/월세");
+  const [category, setCategory] = useState(categories.expense[0] ?? "");
   const [memo, setMemo] = useState("");
   const [day, setDay] = useState("1");
   const [accountId, setAccountId] = useState<string>("");
 
+  const catList = (k: string): string[] => categories[k as keyof CategorySet] ?? [];
   function changeKind(k: string) {
     setKind(k);
-    setCategory(CATEGORIES[k]?.[0] ?? "");
+    setCategory(catList(k)[0] ?? "");
   }
 
   const toast = useToast();
@@ -326,7 +399,7 @@ function RecurringPanel({ accounts, recurring, acctName, onChange, onApplied, lo
         <Input type="number" value={day} onChange={setDay} placeholder="매월 며칠" />
         <MoneyInput value={amount} onChange={setAmount} placeholder="금액" />
         <Select value={category} onChange={setCategory}
-          options={(CATEGORIES[kind] ?? []).map((c) => ({ value: c, label: c }))} />
+          options={catList(kind).map((c) => ({ value: c, label: c }))} />
         <Select value={accountId} onChange={setAccountId}
           options={[{ value: "", label: "계좌(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
         <Input value={memo} onChange={setMemo} placeholder="이름 (예: 월세)" className="col-span-2" />
