@@ -4,7 +4,7 @@ import { X, Repeat } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle, StatCardSkeleton, ListSkeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
-import { formatKRW, savingsRate } from "@/lib/finance";
+import { formatKRW, formatKRWShort, savingsRate } from "@/lib/finance";
 import type { Account, Transaction, RecurringItem } from "@/lib/queries";
 
 const KIND_LABEL: Record<string, string> = { income: "수입", expense: "지출", saving: "저축" };
@@ -88,8 +88,9 @@ export default function CashFlow() {
         <StatCard label="수입" value={`${formatKRW(income)}원`} valueSize={summarySize} accent="up" />
         <StatCard label="지출" value={`${formatKRW(expense)}원`} valueSize={summarySize} accent="down" />
         <StatCard label="저축" value={`${formatKRW(saving)}원`} valueSize={summarySize} accent="accent" />
-        <StatCard label="저축률" value={`${rate.toFixed(1)}%`} valueSize={summarySize}
-          sub={`잉여 ${formatKRW(leftover)}원`} accent={leftover >= 0 ? "up" : "down"} />
+        <StatCard label="저축률" note={`잉여 ${formatKRWShort(leftover)}`}
+          value={`${rate.toFixed(1)}%`} valueSize={summarySize}
+          accent={leftover >= 0 ? "up" : "down"} />
         </>}
       </div>
 

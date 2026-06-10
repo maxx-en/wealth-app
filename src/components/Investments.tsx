@@ -114,9 +114,9 @@ export default function Investments() {
         <>
         <StatCard
           label="총 평가액"
+          note={`${usdKrw.toFixed(0)}원/$`}
           value={`${formatKRW(totalValueKrw)}원`}
           valueSize={topSize}
-          sub={`환율 ${usdKrw.toFixed(0)}원/$`}
         />
         <StatCard label="투자원금" value={`${formatKRW(totalCostKrw)}원`} valueSize={topSize} />
         <StatCard
