@@ -15,12 +15,12 @@ export type Account = {
 export type Transaction = {
   id: number; household_id: number; account_id: number | null; kind: string;
   category: string | null; memo: string | null; amount: number; date: string;
-  recurring_id: number | null;
+  recurring_id: number | null; goal_id: number | null;
 };
 export type RecurringItem = {
   id: number; household_id: number; account_id: number | null; kind: string;
   category: string | null; memo: string | null; amount: number;
-  day_of_month: number; active: number;
+  day_of_month: number; active: number; goal_id: number | null;
 };
 export type Holding = {
   id: number; household_id: number; symbol: string; name: string | null;
@@ -139,8 +139,8 @@ export async function getTransactions(hid: number, ym?: string): Promise<Transac
 }
 export async function addTransaction(hid: number, t: Omit<Transaction, "id" | "household_id">) {
   await ready();
-  await sql`INSERT INTO transactions (household_id,account_id,kind,category,memo,amount,date,recurring_id)
-    VALUES (${hid},${t.account_id},${t.kind},${t.category},${t.memo},${t.amount},${t.date},${t.recurring_id ?? null})`;
+  await sql`INSERT INTO transactions (household_id,account_id,kind,category,memo,amount,date,recurring_id,goal_id)
+    VALUES (${hid},${t.account_id},${t.kind},${t.category},${t.memo},${t.amount},${t.date},${t.recurring_id ?? null},${t.goal_id ?? null})`;
 }
 export async function deleteTransaction(hid: number, id: number) {
   await ready();
@@ -193,8 +193,8 @@ export async function getRecurringItems(hid: number): Promise<RecurringItem[]> {
 }
 export async function addRecurringItem(hid: number, r: Omit<RecurringItem, "id" | "household_id" | "active">) {
   await ready();
-  await sql`INSERT INTO recurring_items (household_id,account_id,kind,category,memo,amount,day_of_month)
-    VALUES (${hid},${r.account_id},${r.kind},${r.category},${r.memo},${r.amount},${r.day_of_month})`;
+  await sql`INSERT INTO recurring_items (household_id,account_id,kind,category,memo,amount,day_of_month,goal_id)
+    VALUES (${hid},${r.account_id},${r.kind},${r.category},${r.memo},${r.amount},${r.day_of_month},${r.goal_id ?? null})`;
 }
 export async function deleteRecurringItem(hid: number, id: number) {
   await ready();
@@ -216,8 +216,8 @@ export async function materializeRecurring(hid: number, ym: string): Promise<num
     if (exists.length > 0) continue;
     const day = String(Math.min(it.day_of_month, 28)).padStart(2, "0");
     const date = `${ym}-${day}`;
-    await sql`INSERT INTO transactions (household_id,account_id,kind,category,memo,amount,date,recurring_id)
-      VALUES (${hid},${it.account_id},${it.kind},${it.category},${it.memo},${it.amount},${date},${it.id})`;
+    await sql`INSERT INTO transactions (household_id,account_id,kind,category,memo,amount,date,recurring_id,goal_id)
+      VALUES (${hid},${it.account_id},${it.kind},${it.category},${it.memo},${it.amount},${date},${it.id},${it.goal_id ?? null})`;
     created++;
   }
   return created;
@@ -277,6 +277,33 @@ export async function addGoal(hid: number, g: Omit<Goal, "id" | "household_id">)
 export async function deleteGoal(hid: number, id: number) {
   await ready();
   await sql`DELETE FROM goals WHERE id=${id} AND household_id=${hid}`;
+}
+
+/** 특정 목표에 연결된 저축 거래의 누적 합계(원). 목표 진행률 계산용. */
+export async function savedTowardGoal(hid: number, goalId: number): Promise<number> {
+  await ready();
+  const rows = await sql<{ total: number }[]>`
+    SELECT COALESCE(SUM(amount),0) AS total FROM transactions
+    WHERE household_id=${hid} AND goal_id=${goalId} AND kind='saving'`;
+  return Number(rows[0]?.total) || 0;
+}
+
+/** 대시보드에 표시할 대표 목표 id. 없으면 null. (household_settings 재사용) */
+export async function getFeaturedGoalId(hid: number): Promise<number | null> {
+  await ready();
+  const rows = await sql<{ value: string }[]>`
+    SELECT value FROM household_settings WHERE household_id=${hid} AND key='featured_goal_id' LIMIT 1`;
+  const v = rows[0]?.value ? Number(rows[0].value) : NaN;
+  return Number.isFinite(v) && v > 0 ? v : null;
+}
+
+/** 대표 목표 설정/해제 (null이면 해제). */
+export async function setFeaturedGoalId(hid: number, goalId: number | null) {
+  await ready();
+  await sql`
+    INSERT INTO household_settings (household_id, key, value, updated_at)
+    VALUES (${hid}, 'featured_goal_id', ${goalId == null ? "" : String(goalId)}, now())
+    ON CONFLICT (household_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()`;
 }
 
 // ---------- 순자산 스냅샷 ----------

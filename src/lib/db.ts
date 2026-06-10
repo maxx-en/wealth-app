@@ -165,6 +165,10 @@ async function migrate() {
   // 잔액을 직접 수정하면 그 순간으로 갱신되어, 직접 수정값이 항상 기준점이 된다.
   await sql`ALTER TABLE accounts ADD COLUMN IF NOT EXISTS balance_updated_at TIMESTAMPTZ NOT NULL DEFAULT now()`;
 
+  // 저축 거래/정기항목을 목표에 연결 (kind=saving일 때 의미). 목표 진행률 집계에 사용.
+  await sql`ALTER TABLE transactions ADD COLUMN IF NOT EXISTS goal_id BIGINT`;
+  await sql`ALTER TABLE recurring_items ADD COLUMN IF NOT EXISTS goal_id BIGINT`;
+
   // app_users 컬럼 보강 (예전 버전 대비)
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS household_id BIGINT`;
   await sql`ALTER TABLE app_users ADD COLUMN IF NOT EXISTS image TEXT`;

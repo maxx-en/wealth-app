@@ -14,6 +14,7 @@ export const POST = withHousehold(async (hid, req) => {
     memo: b.memo ?? null,
     amount: Number(b.amount) || 0,
     day_of_month: Number(b.day_of_month) || 1,
+    goal_id: b.kind === "saving" && b.goal_id ? Number(b.goal_id) : null,
   });
   return NextResponse.json(await getRecurringItems(hid));
 });

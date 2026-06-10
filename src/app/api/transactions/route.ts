@@ -16,6 +16,8 @@ export const POST = withHousehold(async (hid, req) => {
     amount: Number(b.amount) || 0,
     date: b.date,
     recurring_id: null,
+    // 저축 거래만 목표 연결 의미 있음
+    goal_id: b.kind === "saving" && b.goal_id ? Number(b.goal_id) : null,
   });
   const ym = b.date?.slice(0, 7);
   return NextResponse.json(await getTransactions(hid, ym));

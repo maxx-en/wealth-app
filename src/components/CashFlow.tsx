@@ -5,7 +5,7 @@ import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle, St
 import { useToast } from "./Toast";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, formatKRWShort, savingsRate } from "@/lib/finance";
-import type { Account, Transaction, RecurringItem } from "@/lib/queries";
+import type { Account, Transaction, RecurringItem, Goal } from "@/lib/queries";
 import { parseTxnText, matchAccount } from "@/lib/txn-parser";
 import { DEFAULT_CATEGORIES, type CategorySet } from "@/lib/categories";
 
@@ -33,6 +33,7 @@ export default function CashFlow() {
   const [txns, setTxns] = useState<Transaction[]>([]);
   const [recurring, setRecurring] = useState<RecurringItem[]>([]);
   const [categories, setCategories] = useState<CategorySet>(DEFAULT_CATEGORIES);
+  const [goals, setGoals] = useState<Goal[]>([]);
   const [loading, setLoading] = useState(true);
 
   async function loadAll() {
@@ -41,13 +42,14 @@ export default function CashFlow() {
       // 이 월에 등록된 정기항목을 먼저 자동 반영(중복은 서버에서 방지) 후 거래를 불러온다.
       // → 사용자가 별도 버튼을 누를 필요 없이, 매달 페이지를 열기만 하면 고정비가 자동 기록됨.
       await post("/api/recurring/materialize", { ym });
-      const [a, t, r, c] = await Promise.all([
+      const [a, t, r, c, g] = await Promise.all([
         api<Account[]>("/api/accounts"),
         api<Transaction[]>(`/api/transactions?ym=${ym}`),
         api<RecurringItem[]>("/api/recurring"),
         api<CategorySet>("/api/categories"),
+        api<Goal[]>("/api/goals"),
       ]);
-      setAccounts(a); setTxns(t); setRecurring(r); setCategories(c);
+      setAccounts(a); setTxns(t); setRecurring(r); setCategories(c); setGoals(g);
     } finally {
       setLoading(false);
     }
@@ -92,9 +94,9 @@ export default function CashFlow() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <TxnPanel ym={ym} accounts={accounts} txns={txns} categories={categories} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} loading={loading} />
+        <TxnPanel ym={ym} accounts={accounts} txns={txns} categories={categories} goals={goals} acctName={acctName} onChange={setTxns} onAccountsChange={reloadAccounts} loading={loading} />
         <div className="space-y-6">
-          <RecurringPanel accounts={accounts} recurring={recurring} categories={categories} acctName={acctName} onChange={setRecurring} onApplied={loadAll} loading={loading} />
+          <RecurringPanel accounts={accounts} recurring={recurring} categories={categories} goals={goals} acctName={acctName} onChange={setRecurring} onApplied={loadAll} loading={loading} />
           <AccountPanel accounts={accounts} onChange={setAccounts} loading={loading} />
           <CategoryPanel categories={categories} onChange={setCategories} loading={loading} />
         </div>
@@ -178,8 +180,8 @@ function CategoryPanel({ categories, onChange, loading }: {
 }
 
 // ---------- 거래 입력/목록 ----------
-function TxnPanel({ ym, accounts, txns, categories, acctName, onChange, onAccountsChange, loading }: {
-  ym: string; accounts: Account[]; txns: Transaction[]; categories: CategorySet;
+function TxnPanel({ ym, accounts, txns, categories, goals, acctName, onChange, onAccountsChange, loading }: {
+  ym: string; accounts: Account[]; txns: Transaction[]; categories: CategorySet; goals: Goal[];
   acctName: (id: number | null) => string; onChange: (t: Transaction[]) => void;
   onAccountsChange: () => void; // 거래 변경 시 계좌 표시 잔액 갱신용
   loading: boolean;
@@ -190,6 +192,7 @@ function TxnPanel({ ym, accounts, txns, categories, acctName, onChange, onAccoun
   const [memo, setMemo] = useState("");
   const [date, setDate] = useState(today());
   const [accountId, setAccountId] = useState<string>("");
+  const [goalId, setGoalId] = useState<string>(""); // 저축 시 연결할 목표
   const [pasteOpen, setPasteOpen] = useState(false); // 붙여넣기 영역 펼침 여부
 
   const catList = (k: string): string[] => categories[k as keyof CategorySet] ?? [];
@@ -232,6 +235,7 @@ function TxnPanel({ ym, accounts, txns, categories, acctName, onChange, onAccoun
     try {
       const r = await post("/api/transactions", {
         kind, amount, category, memo, date, account_id: accountId ? Number(accountId) : null,
+        goal_id: kind === "saving" && goalId ? Number(goalId) : null,
       });
       onChange(r as Transaction[]);
       setAmount(""); setMemo("");
@@ -303,6 +307,12 @@ function TxnPanel({ ym, accounts, txns, categories, acctName, onChange, onAccoun
         <Select value={accountId} onChange={setAccountId}
           options={[{ value: "", label: "계좌 선택(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
         <Input value={memo} onChange={setMemo} placeholder="메모(선택)" />
+        {/* 저축일 때만: 어느 목표에 적립하는지 연결 → 목표 진행률에 반영 */}
+        {kind === "saving" && goals.length > 0 && (
+          <Select value={goalId} onChange={setGoalId}
+            className="col-span-2"
+            options={[{ value: "", label: "연결 목표 (선택 안 함)" }, ...goals.map((g) => ({ value: String(g.id), label: `🎯 ${g.name}` }))]} />
+        )}
       </div>
       <Button onClick={add} className="mt-4 w-full">추가</Button>
 
@@ -337,8 +347,8 @@ function TxnPanel({ ym, accounts, txns, categories, acctName, onChange, onAccoun
 }
 
 // ---------- 정기항목 ----------
-function RecurringPanel({ accounts, recurring, categories, acctName, onChange, onApplied, loading }: {
-  accounts: Account[]; recurring: RecurringItem[]; categories: CategorySet;
+function RecurringPanel({ accounts, recurring, categories, goals, acctName, onChange, onApplied, loading }: {
+  accounts: Account[]; recurring: RecurringItem[]; categories: CategorySet; goals: Goal[];
   acctName: (id: number | null) => string; onChange: (r: RecurringItem[]) => void;
   onApplied: () => void; // 정기항목 변경 후 이번 달 거래에 즉시 반영시키기 위한 콜백
   loading: boolean;
@@ -349,6 +359,7 @@ function RecurringPanel({ accounts, recurring, categories, acctName, onChange, o
   const [memo, setMemo] = useState("");
   const [day, setDay] = useState("1");
   const [accountId, setAccountId] = useState<string>("");
+  const [goalId, setGoalId] = useState<string>("");
 
   const catList = (k: string): string[] => categories[k as keyof CategorySet] ?? [];
   function changeKind(k: string) {
@@ -364,6 +375,7 @@ function RecurringPanel({ accounts, recurring, categories, acctName, onChange, o
       const r = await post("/api/recurring", {
         kind, amount, category, memo, day_of_month: Number(day),
         account_id: accountId ? Number(accountId) : null,
+        goal_id: kind === "saving" && goalId ? Number(goalId) : null,
       });
       onChange(r as RecurringItem[]);
       setAmount(""); setMemo("");
@@ -403,6 +415,11 @@ function RecurringPanel({ accounts, recurring, categories, acctName, onChange, o
         <Select value={accountId} onChange={setAccountId}
           options={[{ value: "", label: "계좌(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
         <Input value={memo} onChange={setMemo} placeholder="이름 (예: 월세)" className="col-span-2" />
+        {kind === "saving" && goals.length > 0 && (
+          <Select value={goalId} onChange={setGoalId}
+            className="col-span-2"
+            options={[{ value: "", label: "연결 목표 (선택 안 함)" }, ...goals.map((g) => ({ value: String(g.id), label: `🎯 ${g.name}` }))]} />
+        )}
       </div>
       <Button onClick={add} className="mt-4 w-full">정기항목 추가</Button>
 
