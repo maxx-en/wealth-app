@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X, Repeat } from "lucide-react";
+import { X, Repeat, ClipboardPaste } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Select, StatCard, statSize, Toggle, StatCardSkeleton, ListSkeleton } from "./ui";
 import { useToast } from "./Toast";
 import { api, post, del, put, currentYM, today } from "@/lib/api";
 import { formatKRW, formatKRWShort, savingsRate } from "@/lib/finance";
 import type { Account, Transaction, RecurringItem } from "@/lib/queries";
+import { parseTxnText, matchAccount } from "@/lib/txn-parser";
 
 const KIND_LABEL: Record<string, string> = { income: "수입", expense: "지출", saving: "저축" };
 const KIND_OPTS = [
@@ -114,22 +115,46 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange, lo
 }) {
   const [kind, setKind] = useState("expense");
   const [amount, setAmount] = useState("");
-  const [category, setCategory] = useState("");
+  const [category, setCategory] = useState(CATEGORIES.expense[0]); // 초기값 = 지출 첫 카테고리
   const [memo, setMemo] = useState("");
   const [date, setDate] = useState(today());
   const [accountId, setAccountId] = useState<string>("");
+  const [pasteOpen, setPasteOpen] = useState(false); // 붙여넣기 영역 펼침 여부
 
   // 종류가 바뀌면 카테고리 기본값을 그 종류의 첫 항목으로
   function changeKind(k: string) {
     setKind(k);
     setCategory(CATEGORIES[k]?.[0] ?? "");
   }
-  // 첫 렌더 시 카테고리 비어있으면 채움
-  if (category === "" && CATEGORIES[kind]) {
-    setCategory(CATEGORIES[kind][0]);
-  }
 
   const toast = useToast();
+
+  // 붙여넣기 → 자동 파싱 → 폼 채우기. (사용자는 검수 후 "추가" 버튼으로 저장)
+  function handlePaste(text: string) {
+    if (!text.trim()) return;
+    const p = parseTxnText(text, today());
+    if (!p.ok) {
+      toast.error("내용을 인식하지 못했어요. 직접 입력해 주세요");
+      return;
+    }
+    setKind(p.kind);
+    setAmount(p.amount);
+    setDate(p.date);
+    setMemo(p.memo);
+    setCategory(p.category); // 추측 실패 시 "" → 카테고리 미선택
+    const matched = matchAccount(p.accountHint, accounts);
+    setAccountId(matched != null ? String(matched) : ""); // 미매칭 시 미선택
+
+    // 결과 안내
+    const bankLabel = p.bank ? `${p.bank} ` : "";
+    const missing: string[] = [];
+    if (!p.category) missing.push("카테고리");
+    if (matched == null && p.accountHint) missing.push("계좌");
+    if (matched == null && !p.accountHint) missing.push("계좌");
+    const tail = missing.length ? ` ${missing.join("·")}는 직접 선택해 주세요` : " 확인 후 추가하세요";
+    toast.success(`${bankLabel}${KIND_LABEL[p.kind]}으로 인식했어요.${tail}`);
+    setPasteOpen(false); // 채웠으니 접기
+  }
   async function add() {
     if (!amount) { toast.error("금액을 입력해 주세요"); return; }
     try {
@@ -157,13 +182,52 @@ function TxnPanel({ ym, accounts, txns, acctName, onChange, onAccountsChange, lo
 
   return (
     <Card>
-      <h2 className="mb-3 font-semibold">거래 입력</h2>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="font-semibold">거래 입력</h2>
+        <button
+          type="button"
+          onClick={() => setPasteOpen((v) => !v)}
+          className="inline-flex items-center gap-1.5 rounded-full bg-surface-2 px-3 py-1.5 text-xs font-medium text-text transition hover:bg-border"
+        >
+          <ClipboardPaste size={14} strokeWidth={1.8} />
+          문자 붙여넣기
+        </button>
+      </div>
+
+      {/* 결제/이체 알림 문자를 붙여넣으면 아래 폼이 자동으로 채워진다 */}
+      {pasteOpen && (
+        <div className="mb-3 rounded-2xl border border-border bg-surface-2 p-3">
+          <textarea
+            autoFocus
+            rows={4}
+            placeholder="은행/카드 결제 알림 문자를 여기에 붙여넣으세요. 자동으로 금액·날짜·가맹점·계좌를 채워드려요."
+            onPaste={(e) => {
+              const text = e.clipboardData.getData("text");
+              // 기본 붙여넣기 후 파싱 (다음 틱에 textarea 값도 채워짐)
+              setTimeout(() => handlePaste(text), 0);
+            }}
+            onChange={(e) => {
+              // 직접 입력/모바일 길게-붙여넣기 대응: 줄바꿈 포함 충분한 텍스트면 파싱
+              const text = e.target.value;
+              if (text.includes("\n") || text.length > 20) handlePaste(text);
+            }}
+            className="w-full resize-none rounded-xl border border-border bg-surface px-3 py-2.5 text-sm text-text placeholder:text-muted outline-none transition focus:border-accent"
+          />
+          <p className="mt-1.5 text-[11px] text-muted">
+            붙여넣으면 자동 인식 → 폼에서 확인·수정 후 “추가”를 누르면 저장돼요
+          </p>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-2">
         <Select value={kind} onChange={changeKind} options={KIND_OPTS} />
         <Input type="date" value={date} onChange={setDate} />
         <MoneyInput value={amount} onChange={setAmount} placeholder="금액" />
         <Select value={category} onChange={setCategory}
-          options={(CATEGORIES[kind] ?? []).map((c) => ({ value: c, label: c }))} />
+          options={[
+            ...(category === "" ? [{ value: "", label: "카테고리 선택" }] : []),
+            ...(CATEGORIES[kind] ?? []).map((c) => ({ value: c, label: c })),
+          ]} />
         <Select value={accountId} onChange={setAccountId}
           options={[{ value: "", label: "계좌 선택(선택)" }, ...accounts.map((a) => ({ value: String(a.id), label: a.name }))]} />
         <Input value={memo} onChange={setMemo} placeholder="메모(선택)" />
