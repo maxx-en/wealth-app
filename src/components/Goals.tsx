@@ -172,12 +172,18 @@ function GoalCard({ goal, featured, onToggleFeatured, onSave, onRemove }: {
         </div>
       </div>
 
-      {/* 진행률 바 (연결 저축 기준) */}
+      {/* 진행률 바 (연결 저축 기준) — 모은 금액을 강조 */}
       <div className="mt-3">
-        <div className="mb-1 flex justify-between text-xs text-muted">
-          <span>모은 금액 {formatKRW(current)}원</span><span>{progress.toFixed(0)}%</span>
+        <div className="mb-1.5 flex items-end justify-between">
+          <div>
+            <div className="text-[11px] text-muted">모은 금액</div>
+            <div className={`text-xl font-bold tracking-tight tabular-nums ${reached ? "text-up" : "text-accent-strong"}`}>
+              {formatKRW(current)}<span className="ml-0.5 text-sm font-semibold">원</span>
+            </div>
+          </div>
+          <span className={`text-lg font-bold tabular-nums ${reached ? "text-up" : "text-accent-strong"}`}>{progress.toFixed(0)}%</span>
         </div>
-        <div className="h-2 w-full overflow-hidden rounded-full bg-surface-2">
+        <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div className={`h-full rounded-full ${reached ? "bg-up" : "bg-accent"}`} style={{ width: `${progress}%` }} />
         </div>
       </div>
