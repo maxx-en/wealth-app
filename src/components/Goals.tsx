@@ -1,9 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
-import { X } from "lucide-react";
+import { X, Star } from "lucide-react";
 import { Card, Button, Input, MoneyInput, Field, Skeleton } from "./ui";
 import { useToast } from "./Toast";
-import { api, post, del } from "@/lib/api";
+import { api, post, put, del } from "@/lib/api";
 import { formatKRW, requiredMonthly, monthsBetween, dcaFutureValue } from "@/lib/finance";
 import type { Goal } from "@/lib/queries";
 
@@ -12,6 +12,7 @@ type Overview = { netWorth: number };
 export default function Goals() {
   const [goals, setGoals] = useState<Goal[]>([]);
   const [netWorth, setNetWorth] = useState(0);
+  const [featuredId, setFeaturedId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   const [name, setName] = useState("");
@@ -24,12 +25,14 @@ export default function Goals() {
   async function load() {
     setLoading(true);
     try {
-      const [g, o] = await Promise.all([
+      const [g, o, f] = await Promise.all([
         api<Goal[]>("/api/goals"),
         api<Overview>("/api/overview"),
+        api<{ goal: Goal | null }>("/api/goals/featured"),
       ]);
       setGoals(g);
       setNetWorth(o.netWorth);
+      setFeaturedId(f.goal?.id ?? null);
       if (!initial) setInitial(String(Math.round(o.netWorth)));
     } finally {
       setLoading(false);
@@ -56,9 +59,22 @@ export default function Goals() {
   async function remove(id: number) {
     try {
       setGoals((await del(`/api/goals?id=${id}`)) as Goal[]);
+      if (featuredId === id) setFeaturedId(null); // 대표 목표가 삭제되면 해제
       toast.success("목표를 삭제했어요");
     } catch {
       toast.error("삭제에 실패했어요");
+    }
+  }
+  // 대시보드 대표 목표 설정/해제 (이미 대표면 해제)
+  async function toggleFeatured(id: number) {
+    const next = featuredId === id ? null : id;
+    setFeaturedId(next); // 낙관적 반영
+    try {
+      await put("/api/goals/featured", { id: next });
+      toast.success(next ? "대시보드 대표 목표로 설정했어요" : "대표 목표를 해제했어요");
+    } catch {
+      setFeaturedId(featuredId); // 실패 시 롤백
+      toast.error("설정에 실패했어요");
     }
   }
 
@@ -98,7 +114,10 @@ export default function Goals() {
           <p className="py-8 text-center text-sm text-muted">등록된 목표가 없어요</p>
         ) : (
           goals.map((g) => (
-            <GoalCard key={g.id} goal={g} initial={initNum} onRemove={() => remove(g.id)} />
+            <GoalCard key={g.id} goal={g} initial={initNum}
+              featured={featuredId === g.id}
+              onToggleFeatured={() => toggleFeatured(g.id)}
+              onRemove={() => remove(g.id)} />
           ))
         )}
       </div>
@@ -106,7 +125,9 @@ export default function Goals() {
   );
 }
 
-function GoalCard({ goal, initial, onRemove }: { goal: Goal; initial: number; onRemove: () => void }) {
+function GoalCard({ goal, initial, featured, onToggleFeatured, onRemove }: {
+  goal: Goal; initial: number; featured: boolean; onToggleFeatured: () => void; onRemove: () => void;
+}) {
   const now = new Date();
   const target = new Date(goal.target_date);
   const months = Math.max(0, monthsBetween(now, target));
@@ -128,7 +149,15 @@ function GoalCard({ goal, initial, onRemove }: { goal: Goal; initial: number; on
             목표 {formatKRW(goal.target_amount)}원 · {goal.target_date} (약 {years}년 · 수익률 {goal.expected_return}%)
           </div>
         </div>
-        <button onClick={onRemove} aria-label="삭제" className="text-muted transition hover:text-down"><X size={18} strokeWidth={1.8} /></button>
+        <div className="flex items-center gap-1">
+          <button onClick={onToggleFeatured}
+            aria-label={featured ? "대표 목표 해제" : "대시보드에 표시"}
+            title={featured ? "대시보드 대표 목표 (클릭 시 해제)" : "대시보드에 표시"}
+            className={`transition ${featured ? "text-accent-strong" : "text-muted hover:text-text"}`}>
+            <Star size={18} strokeWidth={1.8} fill={featured ? "currentColor" : "none"} />
+          </button>
+          <button onClick={onRemove} aria-label="삭제" className="text-muted transition hover:text-down"><X size={18} strokeWidth={1.8} /></button>
+        </div>
       </div>
 
       {/* 진행률 바 (현재 보유 기준) */}

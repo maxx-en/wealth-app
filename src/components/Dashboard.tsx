@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { Camera, RefreshCw } from "lucide-react";
 import { Card, Button, StatCard, statSize, useChartTheme, Skeleton } from "./ui";
 import { api, post, currentYM } from "@/lib/api";
-import { formatKRW, formatKRWShort, formatPct, growthRate } from "@/lib/finance";
+import { formatKRW, formatKRWShort, formatPct, growthRate, requiredMonthly, monthsBetween } from "@/lib/finance";
+import type { Goal } from "@/lib/queries";
 import {
   ResponsiveContainer, BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, Tooltip, CartesianGrid,
@@ -24,6 +25,7 @@ const PIE_LABELS = ["현금", "저축", "주식", "코인", "부동산"];
 export default function Dashboard() {
   const [ov, setOv] = useState<Overview | null>(null);
   const [snaps, setSnaps] = useState<Snapshot[]>([]);
+  const [featured, setFeatured] = useState<{ goal: Goal | null; saved: number }>({ goal: null, saved: 0 });
   const [msg, setMsg] = useState("");
   const [loading, setLoading] = useState(true);
   const [trendMode, setTrendMode] = useState<"month" | "year">("month"); // 추이 그래프 단위
@@ -32,10 +34,12 @@ export default function Dashboard() {
   async function load() {
     setLoading(true);
     try {
-      const [o, s] = await Promise.all([
+      const [o, s, f] = await Promise.all([
         api<Overview>("/api/overview"),
         api<Snapshot[]>("/api/snapshots"),
+        api<{ goal: Goal | null; saved: number }>("/api/goals/featured"),
       ]);
+      setFeatured(f);
       let snapList = s;
       // 자동 기록: 이번 달 스냅샷이 아직 없으면 현재 순자산으로 1회 자동 저장.
       // 이미 있으면 건드리지 않음(수동으로 누른 최신값 보존).
@@ -150,6 +154,9 @@ export default function Dashboard() {
           accent={ytdGrowth != null && ytdGrowth >= 0 ? "up" : "down"} />
       </div>
 
+      {/* 대표 목표 진행률 (목표 탭에서 별표로 선택한 목표) */}
+      {featured.goal && <GoalProgressCard goal={featured.goal} saved={featured.saved} netWorth={ov.netWorth} />}
+
       <div className="flex flex-wrap items-center gap-2">
         <Button onClick={snapshot}><Camera size={15} strokeWidth={1.8} /> 지금 값으로 갱신</Button>
         <Button variant="ghost" onClick={() => refreshRates(false)} disabled={refreshing}>
@@ -256,6 +263,56 @@ export default function Dashboard() {
         </Card>
       </div>
     </div>
+  );
+}
+
+// 대표 목표 진행률 카드.
+// 진행률 = 이 목표에 연결한 저축 누적액(saved) 기준. 연결 저축이 없으면(0) 순자산으로 폴백.
+function GoalProgressCard({ goal, saved, netWorth }: { goal: Goal; saved: number; netWorth: number }) {
+  const now = new Date();
+  const target = new Date(goal.target_date);
+  const months = Math.max(0, monthsBetween(now, target));
+  // 연결 저축이 있으면 그걸로, 없으면 순자산을 현재값으로 본다.
+  const usingSaved = saved > 0;
+  const current = usingSaved ? saved : netWorth;
+  const progress = Math.min(100, goal.target_amount > 0 ? (current / goal.target_amount) * 100 : 0);
+  const remaining = Math.max(0, goal.target_amount - current);
+  const need = requiredMonthly(goal.target_amount, current, goal.expected_return, months);
+  const reached = current >= goal.target_amount;
+
+  return (
+    <Card>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <h2 className="font-semibold">🎯 {goal.name}</h2>
+        <span className="text-xs text-muted">
+          목표 {formatKRWShort(goal.target_amount)} · {goal.target_date}
+        </span>
+      </div>
+
+      <div className="mb-1 flex justify-between text-sm">
+        <span className="font-medium tabular-nums">{formatKRW(current)}원</span>
+        <span className={`font-semibold tabular-nums ${reached ? "text-up" : "text-accent-strong"}`}>{progress.toFixed(0)}%</span>
+      </div>
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
+        <div className={`h-full rounded-full ${reached ? "bg-up" : "bg-accent"}`} style={{ width: `${progress}%` }} />
+      </div>
+
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        <div className="rounded-xl bg-surface-2 p-2.5">
+          <div className="text-[11px] text-muted">남은 금액</div>
+          <div className="font-semibold tabular-nums">{formatKRWShort(remaining)}</div>
+        </div>
+        <div className="rounded-xl bg-surface-2 p-2.5">
+          <div className="text-[11px] text-muted">{reached ? "달성!" : months <= 0 ? "목표일 지남" : "매월 필요"}</div>
+          <div className="font-semibold tabular-nums">
+            {reached ? "🎉" : months <= 0 ? "날짜 조정" : `${formatKRWShort(need)}`}
+          </div>
+        </div>
+      </div>
+      <p className="mt-2 text-[11px] text-muted">
+        {usingSaved ? "이 목표에 연결한 저축 누적 기준" : "연결된 저축이 없어 순자산 기준으로 표시 (현금흐름에서 저축에 목표를 연결해 보세요)"}
+      </p>
+    </Card>
   );
 }
 
