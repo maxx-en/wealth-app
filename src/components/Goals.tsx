@@ -177,11 +177,11 @@ function GoalCard({ goal, featured, onToggleFeatured, onSave, onRemove }: {
         <div className="mb-1.5 flex items-end justify-between">
           <div>
             <div className="text-[11px] text-muted">모은 금액</div>
-            <div className={`text-xl font-bold tracking-tight tabular-nums ${reached ? "text-up" : "text-[#a7fcc6]"}`}>
+            <div className={`text-xl font-bold tracking-tight tabular-nums ${reached ? "text-up" : "text-text"}`}>
               {formatKRW(current)}<span className="ml-0.5 text-sm font-semibold">원</span>
             </div>
           </div>
-          <span className={`text-lg font-bold tabular-nums ${reached ? "text-up" : "text-[#a7fcc6]"}`}>{progress.toFixed(0)}%</span>
+          <span className={`text-lg font-bold tabular-nums ${reached ? "text-up" : "text-text"}`}>{progress.toFixed(0)}%</span>
         </div>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div className="h-full rounded-full" style={{ width: `${progress}%`, background: reached ? "var(--up)" : "#a7fcc6" }} />
