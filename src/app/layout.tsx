@@ -3,8 +3,8 @@ import "./globals.css";
 import Providers from "@/components/Providers";
 
 export const metadata: Metadata = {
-  title: "내 자산 관리",
-  description: "현금흐름 · 투자 · 자산 · 목표를 한 곳에서",
+  title: "WeWorth — 우리의 자산, 함께",
+  description: "현금흐름 · 투자 · 자산 · 목표를 한 곳에서. 가족과 함께 보는 자산 대시보드",
 };
 
 // 시스템 설정에 따라 라이트/다크 자동 전환

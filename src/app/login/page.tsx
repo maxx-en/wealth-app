@@ -12,9 +12,9 @@ export default async function LoginPage() {
         <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-accent text-[var(--accent-text)]">
           <Wallet size={24} strokeWidth={1.8} />
         </div>
-        <h1 className="text-xl font-bold">내 자산 관리</h1>
+        <h1 className="text-xl font-bold">WeWorth</h1>
         <p className="mt-1 text-sm text-muted">
-          현금흐름 · 투자 · 자산 · 목표를<br />한 곳에서 관리하세요
+          우리의 자산, 함께 키우다<br />현금흐름 · 투자 · 자산 · 목표를 한 곳에서
         </p>
 
         <form
