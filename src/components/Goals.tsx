@@ -177,11 +177,11 @@ function GoalCard({ goal, featured, onToggleFeatured, onSave, onRemove }: {
         <div className="mb-1.5 flex items-end justify-between">
           <div>
             <div className="text-[11px] text-muted">모은 금액</div>
-            <div className={`text-xl font-bold tracking-tight tabular-nums ${reached ? "text-up" : "text-accent-strong"}`}>
+            <div className={`text-xl font-bold tracking-tight tabular-nums ${reached ? "text-up" : "text-[#8fd14f]"}`}>
               {formatKRW(current)}<span className="ml-0.5 text-sm font-semibold">원</span>
             </div>
           </div>
-          <span className={`text-lg font-bold tabular-nums ${reached ? "text-up" : "text-accent-strong"}`}>{progress.toFixed(0)}%</span>
+          <span className={`text-lg font-bold tabular-nums ${reached ? "text-up" : "text-[#8fd14f]"}`}>{progress.toFixed(0)}%</span>
         </div>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
           <div className={`h-full rounded-full ${reached ? "bg-up" : "bg-accent"}`} style={{ width: `${progress}%` }} />
@@ -199,7 +199,7 @@ function GoalCard({ goal, featured, onToggleFeatured, onSave, onRemove }: {
           </span>
         ) : (
           <span>
-            매월 <span className="font-bold text-accent-strong">{formatKRW(need)}원</span>씩 더 저축하면
+            매월 <span className="font-bold text-[#8fd14f]">{formatKRW(need)}원</span>씩 더 저축하면
             {" "}{goal.target_date}에 목표 달성 가능
           </span>
         )}
