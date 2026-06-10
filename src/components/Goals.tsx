@@ -184,7 +184,7 @@ function GoalCard({ goal, featured, onToggleFeatured, onSave, onRemove }: {
           <span className={`text-lg font-bold tabular-nums ${reached ? "text-up" : "text-text"}`}>{progress.toFixed(0)}%</span>
         </div>
         <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-2">
-          <div className="h-full rounded-full" style={{ width: `${progress}%`, background: reached ? "var(--up)" : "#a7fcc6" }} />
+          <div className={`h-full rounded-full ${reached ? "bg-up" : "bg-accent"}`} style={{ width: `${progress}%` }} />
         </div>
       </div>
 
