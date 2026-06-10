@@ -72,16 +72,16 @@ export default function Stats() {
         <span className="text-xs text-muted">월을 바꾸면 그달 기준으로 분석돼요</span>
       </div>
 
-      {/* 이번 달 요약 + 전월 대비 */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* 이번 달 요약 + 전월 대비 — 모바일은 2칸(3칸이면 금액이 박스 넘침), PC는 3칸 */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         <StatCard label="수입" value={`${formatKRW(data.summary.income)}원`} valueSize={summarySize}
-          sub={mom("income") != null ? `전월 대비 ${formatPct(mom("income")!)}` : undefined}
+          note={mom("income") != null ? `전월 ${formatPct(mom("income")!)}` : undefined}
           accent={mom("income") != null && mom("income")! >= 0 ? "up" : "down"} />
         <StatCard label="지출" value={`${formatKRW(data.summary.expense)}원`} valueSize={summarySize}
-          sub={mom("expense") != null ? `전월 대비 ${formatPct(mom("expense")!)}` : undefined}
+          note={mom("expense") != null ? `전월 ${formatPct(mom("expense")!)}` : undefined}
           accent={mom("expense") != null && mom("expense")! <= 0 ? "up" : "down"} />
         <StatCard label="저축" value={`${formatKRW(data.summary.saving)}원`} valueSize={summarySize}
-          sub={mom("saving") != null ? `전월 대비 ${formatPct(mom("saving")!)}` : undefined}
+          note={mom("saving") != null ? `전월 ${formatPct(mom("saving")!)}` : undefined}
           accent={mom("saving") != null && mom("saving")! >= 0 ? "up" : "down"} />
       </div>
 
@@ -147,9 +147,10 @@ export default function Stats() {
                 <YAxis tickFormatter={(v) => `${Math.round(v / 10000)}만`} fontSize={11} width={48} stroke={ct.axis} />
                 <Tooltip formatter={(v: any) => `${formatKRW(Number(v))}원`} contentStyle={{ background: ct.surface, border: `1px solid ${ct.border}`, borderRadius: 12, color: ct.text }} cursor={{ fill: "#80808020" }} />
                 <Legend />
-                <Bar dataKey="income" name="수입" fill={ct.up} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="expense" name="지출" fill={ct.down} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="saving" name="저축" fill={ct.violet} radius={[4, 4, 0, 0]} />
+                {/* 컬러웨이 통일: 파이차트 팔레트와 맞춰 수입=라임 / 지출=주황 / 저축=바이올렛 */}
+                <Bar dataKey="income" name="수입" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="expense" name="지출" fill={COLORS[2]} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="saving" name="저축" fill={COLORS[1]} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
