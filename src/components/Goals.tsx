@@ -160,11 +160,11 @@ function GoalCard({ goal, featured, onToggleFeatured, onSave, onRemove }: {
             목표 {formatKRW(goal.target_amount)}원 · {goal.target_date} ({passed ? "기한 지남" : `약 ${years}년`} · 수익률 {goal.expected_return}%)
           </div>
         </div>
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-3">
           <button onClick={onToggleFeatured}
             aria-label={featured ? "대표 목표 해제" : "대시보드에 표시"}
             title={featured ? "대시보드 대표 목표 (클릭 시 해제)" : "대시보드에 표시"}
-            className={`transition ${featured ? "text-accent-strong" : "text-muted hover:text-text"}`}>
+            className={`transition ${featured ? "text-violet" : "text-muted hover:text-violet"}`}>
             <Star size={18} strokeWidth={1.8} fill={featured ? "currentColor" : "none"} />
           </button>
           <button onClick={() => setEditing(true)} aria-label="수정" className="text-muted transition hover:text-text"><Pencil size={16} strokeWidth={1.8} /></button>
@@ -231,9 +231,10 @@ function GoalEditCard({ goal, onCancel, onSubmit }: {
         <Field label="목표 날짜"><Input type="date" value={date} onChange={setDate} /></Field>
         <Field label="기대수익률 %"><Input type="number" value={ret} onChange={setRet} /></Field>
       </div>
-      <div className="mt-4 flex gap-2">
-        <Button onClick={submit} className="flex-1">저장</Button>
-        <Button variant="ghost" onClick={onCancel}>취소</Button>
+      <div className="mt-4 space-y-2">
+        {/* 저장은 기존 추가 버튼과 같은 큰 사이즈(w-full)로 통일하되 배경을 #222222로 차별화 */}
+        <Button onClick={submit} className="w-full !bg-[#222222] !text-white hover:!brightness-150">저장</Button>
+        <Button variant="ghost" onClick={onCancel} className="w-full">취소</Button>
       </div>
     </Card>
   );

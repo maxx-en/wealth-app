@@ -334,8 +334,10 @@ function TxnPanel({ ym, accounts, txns, categories, goals, acctName, onChange, o
               <div className="text-[11px] text-muted">{t.date} · {acctName(t.account_id)}{t.memo && t.category ? ` · ${t.memo}` : ""}</div>
             </div>
             <div className="flex items-center gap-2">
-              <span className={`text-sm font-medium ${t.kind === "income" ? "text-up" : "text-text"}`}>
-                {t.kind === "income" ? "+" : "-"}{formatKRW(t.amount)}
+              <span className={`text-sm font-medium ${
+                t.kind === "income" ? "text-up" : t.kind === "saving" ? "text-violet" : "text-text"}`}>
+                {/* 수입·저축은 +(자산으로 들어감), 지출만 − */}
+                {t.kind === "expense" ? "-" : "+"}{formatKRW(t.amount)}
               </span>
               <button onClick={() => remove(t.id)} aria-label="삭제" className="text-muted transition hover:text-down"><X size={16} strokeWidth={1.8} /></button>
             </div>
