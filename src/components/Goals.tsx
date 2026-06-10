@@ -231,10 +231,10 @@ function GoalEditCard({ goal, onCancel, onSubmit }: {
         <Field label="목표 날짜"><Input type="date" value={date} onChange={setDate} /></Field>
         <Field label="기대수익률 %"><Input type="number" value={ret} onChange={setRet} /></Field>
       </div>
-      <div className="mt-4 space-y-2">
-        {/* 저장은 기존 추가 버튼과 같은 큰 사이즈(w-full)로 통일하되 배경을 #222222로 차별화 */}
-        <Button onClick={submit} className="w-full !bg-[#222222] !text-white hover:!brightness-150">저장</Button>
-        <Button variant="ghost" onClick={onCancel} className="w-full">취소</Button>
+      <div className="mt-4 flex gap-2">
+        {/* 저장은 배경 #222222로 차별화, 한 줄에 취소와 나란히 */}
+        <Button onClick={submit} className="flex-1 !bg-[#222222] !text-white hover:!brightness-150">저장</Button>
+        <Button variant="ghost" onClick={onCancel} className="px-6">취소</Button>
       </div>
     </Card>
   );
